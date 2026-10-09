@@ -95,8 +95,10 @@ Phones show time left from the server deadline. They do not count down in a stor
 
 ## Game rules for version 1
 
+The full rules live in `docs/lagos-property-rules.md`. Its decision log (section 26) wins over anything here.
+
 - 3 to 6 players. The host can start once 3 have joined. Empty seats close at start.
-- The host picks match length (Short, Normal, Long) when creating the room. It locks at start.
+- The round limit goes down as the player count goes up. Exact numbers come from simulations.
 - No auctions.
 - **Timeout:** the server rolls and ends the turn. It never buys anything.
 - **Missed turns:** a turn the server had to play. The count resets when the player acts again.
@@ -108,7 +110,13 @@ Phones show time left from the server deadline. They do not count down in a stor
 
 ## Database
 
-Platform tables: `profiles` (created automatically on sign-up), `games`, `rooms`, `room_seats`. Friends, groups and chat come later.
+Platform tables:
+
+- `profiles`: created automatically on sign-up. Holds the display name and a unique lowercase username. A taken or invalid username at sign-up gets a numbered one instead.
+- `friendships`: one row per pair of users, smaller id first. `pending` until the other person accepts. Declining, cancelling or unfriending deletes the row.
+- `groups`, `group_members`: up to 50 members. The owner can rename, remove members and reset the invite link. Any member can add their own friends. When the owner leaves, the longest-standing member takes over; the last member leaving deletes the group.
+- `group_messages`: chat plus system messages ("Ada started a room"). A phone sends a `client_id` with each message so a retry never posts twice.
+- `games`, `rooms`, `room_seats`: a room can belong to a group. Rooms are shared by link: anyone signed in with the room link can take a free seat while it is open. When the host leaves, the next seat becomes host; an empty room closes.
 
 Game tables:
 
@@ -129,12 +137,25 @@ Rules:
 - Supabase migrations define tables and access rules. Drizzle types are generated from them with `pnpm --filter @bankroll/api db:pull`.
 - Database tests live in `supabase/tests` and run with `supabase test db`.
 
-Live channels:
+Live channels (phones must join with `private: true`):
 
-- Topic is `match:<match id>`. Phones must join with `private: true`.
-- Only seated players can listen. There is no send rule, so phones cannot broadcast.
-- The API sends with `realtime.send()` inside the move's transaction.
-- A database broadcast can be dropped if no client has connected recently. Phones recover through the missing-version check, so this never corrupts state.
+| Topic | Who can listen | What is sent |
+|---|---|---|
+| `match:<id>` | Players seated in the match | Match updates |
+| `group:<id>` | Group members | New chat messages; "group changed" |
+| `room:<id>` | Seated players and members of the room's group | "Room changed" |
+| `user:<id>` | That user only | "Friends changed", "groups changed" |
+
+- There is no send rule, so phones cannot broadcast.
+- The API sends with `realtime.send()` inside the same transaction as the change.
+- A database broadcast can be dropped if no client has connected recently. Phones refetch whenever a channel (re)connects, and match screens also use the missing-version check, so a dropped message never corrupts state.
+
+## Accounts
+
+- Sign-up asks for a name, username, email and password (8+ characters). The username is checked live against `GET /v1/public/usernames/:username`, the only API route that needs no login.
+- New accounts must confirm their email before signing in. The confirmation link signs them in and opens the app.
+- Forgot password emails a link to `/reset-password`, which signs the user in for that one purpose and asks for a new password.
+- Locally, all emails land in Mailpit at http://127.0.0.1:55424. In production, the same settings (confirmations on, minimum password length 8, redirect URLs for the site) must be set in the Supabase dashboard, along with a real email provider.
 
 ## Local setup
 
@@ -142,6 +163,7 @@ Live channels:
 2. `supabase start`. This project uses ports 55420–55429 so it can run next to other local Supabase projects.
 3. Copy each app's `.env.example` to `.env`. Add the publishable key from `supabase status`.
 4. `pnpm dev`.
+5. To check accounts, friends, groups, chat and rooms end to end against the running API: `SUPABASE_PUBLISHABLE_KEY=… SUPABASE_SECRET_KEY=… pnpm --filter @bankroll/api smoke:social` (both keys from `supabase status`; local only).
 
 ## Board rendering
 
@@ -159,5 +181,5 @@ The platform (home, friends, groups, rooms, profile, match route) does not know 
 ## Open items
 
 - Design the 6-player strip for the match screen. Current designs show 4 players.
-- Agree round counts for Short, Normal and Long. `ROUNDS_BY_LENGTH` holds placeholders (24, 48, 72).
-- Agree starting cash.
+- Set round limits per player count from simulations. `ROUNDS_BY_LENGTH` still holds placeholders and will be replaced.
+- Starting a match from a room lobby comes with the Lagos Property build.

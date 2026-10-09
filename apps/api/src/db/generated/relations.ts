@@ -1,22 +1,57 @@
 import { relations } from "drizzle-orm/relations";
-import { usersInAuth, profiles, games, rooms, matches, roomSeats, matchPlayers, matchStates, matchResults, matchEvents } from "./schema";
+import { profiles, groups, groupMessages, rooms, usersInAuth, games, matches, groupMembers, roomSeats, matchPlayers, matchStates, matchResults, friendships, matchEvents } from "./schema";
+
+export const groupsRelations = relations(groups, ({one, many}) => ({
+	profile: one(profiles, {
+		fields: [groups.ownerId],
+		references: [profiles.id]
+	}),
+	groupMessages: many(groupMessages),
+	rooms: many(rooms),
+	groupMembers: many(groupMembers),
+}));
 
 export const profilesRelations = relations(profiles, ({one, many}) => ({
+	groups: many(groups),
+	groupMessages: many(groupMessages),
 	usersInAuth: one(usersInAuth, {
 		fields: [profiles.id],
 		references: [usersInAuth.id]
 	}),
 	rooms: many(rooms),
+	groupMembers: many(groupMembers),
 	roomSeats: many(roomSeats),
 	matchPlayers: many(matchPlayers),
+	friendships_userLow: many(friendships, {
+		relationName: "friendships_userLow_profiles_id"
+	}),
+	friendships_userHigh: many(friendships, {
+		relationName: "friendships_userHigh_profiles_id"
+	}),
 	matchEvents: many(matchEvents),
 }));
 
-export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
-	profiles: many(profiles),
+export const groupMessagesRelations = relations(groupMessages, ({one}) => ({
+	group: one(groups, {
+		fields: [groupMessages.groupId],
+		references: [groups.id]
+	}),
+	profile: one(profiles, {
+		fields: [groupMessages.senderId],
+		references: [profiles.id]
+	}),
+	room: one(rooms, {
+		fields: [groupMessages.roomId],
+		references: [rooms.id]
+	}),
 }));
 
 export const roomsRelations = relations(rooms, ({one, many}) => ({
+	groupMessages: many(groupMessages),
+	group: one(groups, {
+		fields: [rooms.groupId],
+		references: [groups.id]
+	}),
 	game: one(games, {
 		fields: [rooms.gameId],
 		references: [games.id]
@@ -27,6 +62,10 @@ export const roomsRelations = relations(rooms, ({one, many}) => ({
 	}),
 	matches: many(matches),
 	roomSeats: many(roomSeats),
+}));
+
+export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
+	profiles: many(profiles),
 }));
 
 export const gamesRelations = relations(games, ({many}) => ({
@@ -45,6 +84,17 @@ export const matchesRelations = relations(matches, ({one, many}) => ({
 	}),
 	matchPlayers: many(matchPlayers),
 	matchStates: many(matchStates),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({one}) => ({
+	group: one(groups, {
+		fields: [groupMembers.groupId],
+		references: [groups.id]
+	}),
+	profile: one(profiles, {
+		fields: [groupMembers.userId],
+		references: [profiles.id]
+	}),
 }));
 
 export const roomSeatsRelations = relations(roomSeats, ({one}) => ({
@@ -82,6 +132,19 @@ export const matchResultsRelations = relations(matchResults, ({one}) => ({
 	matchPlayer: one(matchPlayers, {
 		fields: [matchResults.matchId],
 		references: [matchPlayers.matchId]
+	}),
+}));
+
+export const friendshipsRelations = relations(friendships, ({one}) => ({
+	profile_userLow: one(profiles, {
+		fields: [friendships.userLow],
+		references: [profiles.id],
+		relationName: "friendships_userLow_profiles_id"
+	}),
+	profile_userHigh: one(profiles, {
+		fields: [friendships.userHigh],
+		references: [profiles.id],
+		relationName: "friendships_userHigh_profiles_id"
 	}),
 }));
 

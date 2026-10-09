@@ -149,8 +149,8 @@ reset role;
 select policies_are(
   'realtime',
   'messages',
-  array['match players can receive match updates'],
-  'phones can only receive on match channels and have no send rule'
+  array['members can receive their channel updates'],
+  'phones can only receive on live channels and have no send rule'
 );
 
 select * from finish();

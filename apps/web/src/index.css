@@ -1,12 +1,92 @@
 @import "tailwindcss";
+@import "@fontsource-variable/plus-jakarta-sans";
 
+/* Tokens from the "Lagos Property" Paper file. */
 @theme {
-  --color-ink: #202a25;
-  --color-ink-soft: #5b6660;
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, sans-serif;
+
   --color-paper: #f7f8f5;
-  --color-line: #e4e1db;
+  --color-paper-deep: #edefea;
+  --color-white: #ffffff;
+  --color-ink: #202a25;
+  --color-ink-soft: #5c6b64;
+  --color-line: #dce2da;
+  --color-night: #202824;
   --color-lagoon: #206b52;
+  --color-lagoon-bright: #34b67a;
   --color-danfo: #f5bf45;
+  --color-danfo-deep: #c4922a;
+  --color-laterite: #a56a42;
+  --color-laterite-soft: #f6e7d8;
+  --color-laterite-ink: #5c3820;
+  --color-orange: #ef9654;
+  --color-orange-soft: #fde8d6;
+  --color-orange-ink: #7a4014;
+  --color-coral: #e76d62;
+  --color-coral-soft: #fce3df;
+  --color-coral-ink: #7c3028;
+  --color-violet: #7a5ea8;
+  --color-violet-soft: #ebe4f4;
+  --color-violet-ink: #3e2c62;
+  --color-teal: #1e8a84;
+  --color-teal-soft: #d7f1ee;
+  --color-teal-ink: #0e4e4a;
+  --color-brass: #c9972e;
+  --color-brass-soft: #f8efd4;
+  --color-brass-ink: #6a4e10;
+  --color-info: #4289d4;
+
+  /* Repeated literal values in the social screens. */
+  --color-edge: #e4e1db;
+  --color-divider: #eeece7;
+  --color-muted: #8a958f;
+  --color-chip: #f4f5f2;
+  --color-segment: #e9ece7;
+  --color-online: #1f9d63;
+  --color-alert: #8c3a2f;
+  --color-lagoon-soft: #e6f0eb;
+  --color-lagoon-mid: #2c7b60;
+  --color-lagoon-deep: #1a5a44;
+  --color-lagoon-mist: #cde3d8;
+  --color-danfo-soft: #fbebc6;
+  --color-danfo-wash: #fbf3df;
+  --color-gold-ink: #9a6b12;
+  --color-gold-line: #e2b867;
+  --color-navy: #1b3a6b;
+  --color-navy-mid: #2a4c82;
+  --color-navy-mist: #bfd0ea;
+  --color-rose: #be3a62;
+  --color-dash-line: #d9d5cd;
+  --color-check: #c9cfcb;
+
+  --text-caption: 12px;
+  --text-label: 13px;
+  --text-body: 15px;
+  --text-title: 17px;
+  --text-section: 20px;
+  --text-heading: 28px;
+  --text-display: 40px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 800;
+
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.015em;
+  --tracking-wide: 0.08em;
+
+  --leading-caption: 16px;
+  --leading-body: 22px;
+  --leading-title: 24px;
+  --leading-display: 44px;
+
+  --radius-tile: 4px;
+  --radius-button: 10px;
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --radius-pill: 999px;
 }
 
 html,
@@ -18,5 +98,9 @@ body,
 body {
   background: var(--color-paper);
   color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }

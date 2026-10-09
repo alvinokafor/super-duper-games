@@ -1,6 +1,10 @@
+import { displayNameSchema } from "@bankroll/contracts";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
+import { Button, ErrorText, Muted, TextField } from "@/components/ui";
+import { AuthShell, authErrorMessage, authLinkClass } from "@/features/auth/auth-shell";
 import { getSession } from "@/features/auth/session";
+import { UsernameField, useUsernameStatus } from "@/features/auth/username-field";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/register")({
@@ -11,47 +15,88 @@ export const Route = createFileRoute("/register")({
 });
 
 function RegisterPage() {
-  const [message, setMessage] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const usernameStatus = useUsernameStatus(username);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const displayName = displayNameSchema.safeParse(form.get("displayName"));
+    if (!displayName.success) return setError(displayName.error.issues[0]?.message ?? "Enter a name");
+    if (usernameStatus.status !== "available") {
+      return setError(usernameStatus.status === "taken" ? "That username is taken" : "Choose a valid username");
+    }
+
+    const email = String(form.get("email")).trim();
     setPending(true);
     setError(null);
     const { error } = await supabase.auth.signUp({
-      email: String(form.get("email")),
+      email,
       password: String(form.get("password")),
-      options: { data: { display_name: String(form.get("displayName")) } },
+      options: {
+        data: { display_name: displayName.data, username: username.trim() },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
     setPending(false);
-    if (error) return setError(error.message);
-    setMessage("Check your email to confirm your account.");
+    if (error) return setError(authErrorMessage(error));
+    setSentTo(email);
+  }
+
+  async function resend() {
+    if (!sentTo) return;
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: sentTo,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    });
+    setNotice(error ? authErrorMessage(error) : "We sent another link.");
+  }
+
+  const footer = (
+    <>
+      Have an account?{" "}
+      <Link to="/login" className={authLinkClass}>
+        Sign in
+      </Link>
+    </>
+  );
+
+  if (sentTo) {
+    return (
+      <AuthShell title="Check your email" subtitle={`We sent a confirmation link to ${sentTo}. Open it to start playing.`} footer={footer}>
+        <Button variant="outline" onClick={resend}>
+          Resend link
+        </Button>
+        {notice && <Muted className="text-center">{notice}</Muted>}
+      </AuthShell>
+    );
   }
 
   return (
-    <main className="flex flex-1 flex-col justify-center gap-6 p-6">
-      <h1 className="text-3xl font-extrabold tracking-tight">Create account</h1>
-      {message ? (
-        <p className="text-ink-soft">{message}</p>
-      ) : (
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <input name="displayName" required placeholder="Display name" autoComplete="nickname"
-            className="rounded-xl border border-line bg-white px-4 py-3" />
-          <input name="email" type="email" required placeholder="Email" autoComplete="email"
-            className="rounded-xl border border-line bg-white px-4 py-3" />
-          <input name="password" type="password" required minLength={8} placeholder="Password" autoComplete="new-password"
-            className="rounded-xl border border-line bg-white px-4 py-3" />
-          {error && <p className="text-sm text-red-700">{error}</p>}
-          <button disabled={pending} className="rounded-xl bg-ink px-4 py-3 font-semibold text-white disabled:opacity-60">
-            {pending ? "Creating…" : "Create account"}
-          </button>
-        </form>
-      )}
-      <p className="text-sm text-ink-soft">
-        Have an account? <Link to="/login" className="font-semibold text-lagoon">Sign in</Link>
-      </p>
-    </main>
+    <AuthShell title="Create account" subtitle="Friends find you by your username." footer={footer}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <TextField label="Your name" name="displayName" required maxLength={40} autoComplete="nickname" />
+        <UsernameField value={username} onChange={setUsername} status={usernameStatus} />
+        <TextField label="Email" name="email" type="email" required autoComplete="email" />
+        <TextField
+          label="Password"
+          name="password"
+          type="password"
+          required
+          minLength={8}
+          placeholder="8 or more characters"
+          autoComplete="new-password"
+        />
+        <ErrorText>{error}</ErrorText>
+        <Button type="submit" variant="lagoon" disabled={pending}>
+          {pending ? "Creating…" : "Create account"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

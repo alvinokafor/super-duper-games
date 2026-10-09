@@ -10,20 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedFriendsIndexRouteImport } from './routes/_authenticated/friends/index'
+import { Route as AuthenticatedFriendsUserIdRouteImport } from './routes/_authenticated/friends/$userId'
+import { Route as AuthenticatedFriendsAddRouteImport } from './routes/_authenticated/friends/add'
 import { Route as AuthenticatedGamesIndexRouteImport } from './routes/_authenticated/games/index'
 import { Route as AuthenticatedGamesGameIdRouteImport } from './routes/_authenticated/games/$gameId'
 import { Route as AuthenticatedGroupsIndexRouteImport } from './routes/_authenticated/groups/index'
-import { Route as AuthenticatedGroupsGroupIdRouteImport } from './routes/_authenticated/groups/$groupId'
+import { Route as AuthenticatedGroupsNewRouteImport } from './routes/_authenticated/groups/new'
+import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join/$code'
 import { Route as AuthenticatedMatchesMatchIdRouteImport } from './routes/_authenticated/matches/$matchId'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedRoomsRoomIdRouteImport } from './routes/_authenticated/rooms/$roomId'
+import { Route as AuthenticatedGroupsGroupIdIndexRouteImport } from './routes/_authenticated/groups/$groupId/index'
+import { Route as AuthenticatedGroupsGroupIdMembersRouteImport } from './routes/_authenticated/groups/$groupId/members'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -34,6 +46,11 @@ const LoginRoute = LoginRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -47,6 +64,17 @@ const AuthenticatedFriendsIndexRoute =
     path: '/friends/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedFriendsUserIdRoute =
+  AuthenticatedFriendsUserIdRouteImport.update({
+    id: '/friends/$userId',
+    path: '/friends/$userId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedFriendsAddRoute = AuthenticatedFriendsAddRouteImport.update({
+  id: '/friends/add',
+  path: '/friends/add',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedGamesIndexRoute = AuthenticatedGamesIndexRouteImport.update({
   id: '/games/',
   path: '/games/',
@@ -64,12 +92,16 @@ const AuthenticatedGroupsIndexRoute =
     path: '/groups/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedGroupsGroupIdRoute =
-  AuthenticatedGroupsGroupIdRouteImport.update({
-    id: '/groups/$groupId',
-    path: '/groups/$groupId',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
+const AuthenticatedGroupsNewRoute = AuthenticatedGroupsNewRouteImport.update({
+  id: '/groups/new',
+  path: '/groups/new',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedJoinCodeRoute = AuthenticatedJoinCodeRouteImport.update({
+  id: '/join/$code',
+  path: '/join/$code',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedMatchesMatchIdRoute =
   AuthenticatedMatchesMatchIdRouteImport.update({
     id: '/matches/$matchId',
@@ -88,95 +120,151 @@ const AuthenticatedRoomsRoomIdRoute =
     path: '/rooms/$roomId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedGroupsGroupIdIndexRoute =
+  AuthenticatedGroupsGroupIdIndexRouteImport.update({
+    id: '/groups/$groupId/',
+    path: '/groups/$groupId/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedGroupsGroupIdMembersRoute =
+  AuthenticatedGroupsGroupIdMembersRouteImport.update({
+    id: '/groups/$groupId/members',
+    path: '/groups/$groupId/members',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
+  '/friends/add': typeof AuthenticatedFriendsAddRoute
   '/games/$gameId': typeof AuthenticatedGamesGameIdRoute
-  '/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
+  '/groups/new': typeof AuthenticatedGroupsNewRoute
+  '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
   '/rooms/$roomId': typeof AuthenticatedRoomsRoomIdRoute
   '/friends/': typeof AuthenticatedFriendsIndexRoute
   '/games/': typeof AuthenticatedGamesIndexRoute
   '/groups/': typeof AuthenticatedGroupsIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
+  '/groups/$groupId/members': typeof AuthenticatedGroupsGroupIdMembersRoute
+  '/groups/$groupId/': typeof AuthenticatedGroupsGroupIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/': typeof AuthenticatedIndexRoute
+  '/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
+  '/friends/add': typeof AuthenticatedFriendsAddRoute
   '/games/$gameId': typeof AuthenticatedGamesGameIdRoute
-  '/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
+  '/groups/new': typeof AuthenticatedGroupsNewRoute
+  '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
   '/rooms/$roomId': typeof AuthenticatedRoomsRoomIdRoute
   '/friends': typeof AuthenticatedFriendsIndexRoute
   '/games': typeof AuthenticatedGamesIndexRoute
   '/groups': typeof AuthenticatedGroupsIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
+  '/groups/$groupId/members': typeof AuthenticatedGroupsGroupIdMembersRoute
+  '/groups/$groupId': typeof AuthenticatedGroupsGroupIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
+  '/_authenticated/friends/add': typeof AuthenticatedFriendsAddRoute
   '/_authenticated/games/$gameId': typeof AuthenticatedGamesGameIdRoute
-  '/_authenticated/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
+  '/_authenticated/groups/new': typeof AuthenticatedGroupsNewRoute
+  '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
   '/_authenticated/rooms/$roomId': typeof AuthenticatedRoomsRoomIdRoute
   '/_authenticated/friends/': typeof AuthenticatedFriendsIndexRoute
   '/_authenticated/games/': typeof AuthenticatedGamesIndexRoute
   '/_authenticated/groups/': typeof AuthenticatedGroupsIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
+  '/_authenticated/groups/$groupId/members': typeof AuthenticatedGroupsGroupIdMembersRoute
+  '/_authenticated/groups/$groupId/': typeof AuthenticatedGroupsGroupIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/register'
+    | '/reset-password'
+    | '/friends/$userId'
+    | '/friends/add'
     | '/games/$gameId'
-    | '/groups/$groupId'
+    | '/groups/new'
+    | '/join/$code'
     | '/matches/$matchId'
     | '/rooms/$roomId'
     | '/friends/'
     | '/games/'
     | '/groups/'
     | '/profile/'
+    | '/groups/$groupId/members'
+    | '/groups/$groupId/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/forgot-password'
     | '/login'
     | '/register'
+    | '/reset-password'
     | '/'
+    | '/friends/$userId'
+    | '/friends/add'
     | '/games/$gameId'
-    | '/groups/$groupId'
+    | '/groups/new'
+    | '/join/$code'
     | '/matches/$matchId'
     | '/rooms/$roomId'
     | '/friends'
     | '/games'
     | '/groups'
     | '/profile'
+    | '/groups/$groupId/members'
+    | '/groups/$groupId'
   id:
     | '__root__'
     | '/_authenticated'
+    | '/forgot-password'
     | '/login'
     | '/register'
+    | '/reset-password'
     | '/_authenticated/'
+    | '/_authenticated/friends/$userId'
+    | '/_authenticated/friends/add'
     | '/_authenticated/games/$gameId'
-    | '/_authenticated/groups/$groupId'
+    | '/_authenticated/groups/new'
+    | '/_authenticated/join/$code'
     | '/_authenticated/matches/$matchId'
     | '/_authenticated/rooms/$roomId'
     | '/_authenticated/friends/'
     | '/_authenticated/games/'
     | '/_authenticated/groups/'
     | '/_authenticated/profile/'
+    | '/_authenticated/groups/$groupId/members'
+    | '/_authenticated/groups/$groupId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -186,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -202,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/': {
       id: '/_authenticated/'
       path: '/'
@@ -214,6 +316,20 @@ declare module '@tanstack/react-router' {
       path: '/friends'
       fullPath: '/friends/'
       preLoaderRoute: typeof AuthenticatedFriendsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/friends/$userId': {
+      id: '/_authenticated/friends/$userId'
+      path: '/friends/$userId'
+      fullPath: '/friends/$userId'
+      preLoaderRoute: typeof AuthenticatedFriendsUserIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/friends/add': {
+      id: '/_authenticated/friends/add'
+      path: '/friends/add'
+      fullPath: '/friends/add'
+      preLoaderRoute: typeof AuthenticatedFriendsAddRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/games/': {
@@ -237,11 +353,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGroupsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/groups/$groupId': {
-      id: '/_authenticated/groups/$groupId'
-      path: '/groups/$groupId'
-      fullPath: '/groups/$groupId'
-      preLoaderRoute: typeof AuthenticatedGroupsGroupIdRouteImport
+    '/_authenticated/groups/new': {
+      id: '/_authenticated/groups/new'
+      path: '/groups/new'
+      fullPath: '/groups/new'
+      preLoaderRoute: typeof AuthenticatedGroupsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/join/$code': {
+      id: '/_authenticated/join/$code'
+      path: '/join/$code'
+      fullPath: '/join/$code'
+      preLoaderRoute: typeof AuthenticatedJoinCodeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/matches/$matchId': {
@@ -265,31 +388,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRoomsRoomIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/groups/$groupId/': {
+      id: '/_authenticated/groups/$groupId/'
+      path: '/groups/$groupId'
+      fullPath: '/groups/$groupId/'
+      preLoaderRoute: typeof AuthenticatedGroupsGroupIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/groups/$groupId/members': {
+      id: '/_authenticated/groups/$groupId/members'
+      path: '/groups/$groupId/members'
+      fullPath: '/groups/$groupId/members'
+      preLoaderRoute: typeof AuthenticatedGroupsGroupIdMembersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedFriendsUserIdRoute: typeof AuthenticatedFriendsUserIdRoute
+  AuthenticatedFriendsAddRoute: typeof AuthenticatedFriendsAddRoute
   AuthenticatedGamesGameIdRoute: typeof AuthenticatedGamesGameIdRoute
-  AuthenticatedGroupsGroupIdRoute: typeof AuthenticatedGroupsGroupIdRoute
+  AuthenticatedGroupsNewRoute: typeof AuthenticatedGroupsNewRoute
+  AuthenticatedJoinCodeRoute: typeof AuthenticatedJoinCodeRoute
   AuthenticatedMatchesMatchIdRoute: typeof AuthenticatedMatchesMatchIdRoute
   AuthenticatedRoomsRoomIdRoute: typeof AuthenticatedRoomsRoomIdRoute
   AuthenticatedFriendsIndexRoute: typeof AuthenticatedFriendsIndexRoute
   AuthenticatedGamesIndexRoute: typeof AuthenticatedGamesIndexRoute
   AuthenticatedGroupsIndexRoute: typeof AuthenticatedGroupsIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
+  AuthenticatedGroupsGroupIdMembersRoute: typeof AuthenticatedGroupsGroupIdMembersRoute
+  AuthenticatedGroupsGroupIdIndexRoute: typeof AuthenticatedGroupsGroupIdIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedFriendsUserIdRoute: AuthenticatedFriendsUserIdRoute,
+  AuthenticatedFriendsAddRoute: AuthenticatedFriendsAddRoute,
   AuthenticatedGamesGameIdRoute: AuthenticatedGamesGameIdRoute,
-  AuthenticatedGroupsGroupIdRoute: AuthenticatedGroupsGroupIdRoute,
+  AuthenticatedGroupsNewRoute: AuthenticatedGroupsNewRoute,
+  AuthenticatedJoinCodeRoute: AuthenticatedJoinCodeRoute,
   AuthenticatedMatchesMatchIdRoute: AuthenticatedMatchesMatchIdRoute,
   AuthenticatedRoomsRoomIdRoute: AuthenticatedRoomsRoomIdRoute,
   AuthenticatedFriendsIndexRoute: AuthenticatedFriendsIndexRoute,
   AuthenticatedGamesIndexRoute: AuthenticatedGamesIndexRoute,
   AuthenticatedGroupsIndexRoute: AuthenticatedGroupsIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
+  AuthenticatedGroupsGroupIdMembersRoute:
+    AuthenticatedGroupsGroupIdMembersRoute,
+  AuthenticatedGroupsGroupIdIndexRoute: AuthenticatedGroupsGroupIdIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -298,8 +446,10 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

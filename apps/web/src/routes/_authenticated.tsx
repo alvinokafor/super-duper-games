@@ -1,5 +1,11 @@
-import { createFileRoute, Link, Outlet, redirect, useMatchRoute } from "@tanstack/react-router";
+import { USER_EVENT, userChannelName, userEventSchema } from "@bankroll/contracts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, Outlet, redirect, useMatches } from "@tanstack/react-router";
+import { TabIcon } from "@/components/icons";
 import { getSession } from "@/features/auth/session";
+import { friendsQuery } from "@/features/friends/api";
+import { queryKeys } from "@/lib/query-keys";
+import { useChannel } from "@/lib/realtime";
 
 // Makes the app easier to use. It is not security: the API checks every request.
 export const Route = createFileRoute("/_authenticated")({
@@ -12,37 +18,85 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const tabs = [
-  { to: "/", label: "Home" },
-  { to: "/games", label: "Games" },
-  { to: "/friends", label: "Friends" },
-  { to: "/groups", label: "Groups" },
-  { to: "/profile", label: "Profile" },
+  { to: "/", label: "Home", icon: "home" },
+  { to: "/games", label: "Games", icon: "games" },
+  { to: "/friends", label: "Friends", icon: "friends" },
+  { to: "/groups", label: "Groups", icon: "groups" },
+  { to: "/profile", label: "Profile", icon: "profile" },
 ] as const;
 
+// Only the five main screens show the tab bar; everything else has its own back button.
+const tabRoutes = new Set<string>([
+  "/_authenticated/",
+  "/_authenticated/games/",
+  "/_authenticated/friends/",
+  "/_authenticated/groups/",
+  "/_authenticated/profile/",
+]);
+
 function AuthenticatedLayout() {
-  const matchRoute = useMatchRoute();
-  const inMatch = Boolean(matchRoute({ to: "/matches/$matchId", fuzzy: true }));
+  const { userId } = Route.useRouteContext();
+  const queryClient = useQueryClient();
+  const showTabs = useMatches({ select: (matches) => tabRoutes.has(matches.at(-1)?.routeId ?? "") });
+
+  const refreshLists = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.groups, exact: true });
+  };
+
+  useChannel(
+    userChannelName(userId),
+    {
+      [USER_EVENT]: (payload) => {
+        const event = userEventSchema.safeParse(payload);
+        if (!event.success) return;
+        if (event.data.type === "friends_changed") void queryClient.invalidateQueries({ queryKey: queryKeys.friends });
+        if (event.data.type === "groups_changed") void queryClient.invalidateQueries({ queryKey: queryKeys.groups });
+      },
+    },
+    refreshLists,
+  );
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Outlet />
       </div>
-      {!inMatch && (
-        <nav className="flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)]">
-          {tabs.map((tab) => (
-            <Link
-              key={tab.to}
-              to={tab.to}
-              activeOptions={{ exact: tab.to === "/" }}
-              className="flex-1 py-3 text-center text-xs font-semibold text-ink-soft"
-              activeProps={{ className: "text-lagoon" }}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </nav>
-      )}
+      {showTabs && <TabBar />}
     </>
+  );
+}
+
+function TabBar() {
+  const friends = useQuery(friendsQuery);
+  const requests = friends.data?.incoming.length ?? 0;
+
+  return (
+    <nav className="flex justify-around border-t border-edge bg-white px-2 pt-[10px] pb-[max(28px,env(safe-area-inset-bottom))]">
+      {tabs.map((tab) => (
+        <Link
+          key={tab.to}
+          to={tab.to}
+          activeOptions={{ exact: tab.to === "/" }}
+          className="relative flex w-16 shrink-0 flex-col items-center gap-[3px]"
+        >
+          {({ isActive }) => (
+            <>
+              <TabIcon name={tab.icon} active={isActive} />
+              <span
+                className={`text-[11px] leading-[14px] ${isActive ? "font-black text-lagoon" : "font-bold text-muted"}`}
+              >
+                {tab.label}
+              </span>
+              {tab.icon === "friends" && requests > 0 && (
+                <span className="absolute top-[-3px] left-[38px] flex h-4 min-w-4 items-center justify-center rounded-pill bg-alert px-1 text-[10px] leading-3 font-black text-white">
+                  {requests}
+                </span>
+              )}
+            </>
+          )}
+        </Link>
+      ))}
+    </nav>
   );
 }
