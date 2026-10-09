@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const matchStatusSchema = z.enum(["lobby", "active", "finished", "abandoned"]);
+export const matchStatusSchema = z.enum(["active", "finished", "abandoned"]);
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
 
 export const matchLengthSchema = z.enum(["short", "normal", "long"]);

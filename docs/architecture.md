@@ -108,16 +108,17 @@ Phones show time left from the server deadline. They do not count down in a stor
 
 ## Database
 
-Platform tables: profiles, friendships, groups, group members, group messages, games, rooms, room seats.
+Platform tables: `profiles` (created automatically on sign-up), `games`, `rooms`, `room_seats`. Friends, groups and chat come later.
 
 Game tables:
 
 - `matches`: game, room, status, settings, current version, turn deadline, and the current full state.
-- `match_players`: seat, status (playing, bankrupt, removed, watching), missed-turn count.
-- `match_states`: a full copy of the state after every move. Used for replays and bug reports.
-- `match_events`: one row per accepted move. Version, command id, public events. Never edited.
-- `match_commands`: command id and the answer given, so retries return the same result.
-- `match_results`: written once at the end, for history and profiles.
+- `match_players`: who is seated, and in which seat. Removed players stay so they can watch. Player status and missed turns live in the game state, so there is one source of truth.
+- `match_states`: a full copy of the state after every move. Version 0 is the starting state.
+- `match_events`: one row per accepted move. Version, command id, actor, public events. Never edited. The command id is unique per match, so it is also the retry receipt: a repeated command id returns the saved state and events for that version.
+- `match_results`: one row per player, written once at the end, for history and profiles.
+
+Each move must have a saved state for its version. The database enforces this.
 
 Rules:
 
@@ -125,7 +126,22 @@ Rules:
 - Game state is one JSON value per match, so each game can use its own shape.
 - Phones have no read access to game tables.
 - Only seated players can listen on a match channel. No phone can send on it.
-- Supabase migrations define tables and access rules. Drizzle types are generated from them.
+- Supabase migrations define tables and access rules. Drizzle types are generated from them with `pnpm --filter @bankroll/api db:pull`.
+- Database tests live in `supabase/tests` and run with `supabase test db`.
+
+Live channels:
+
+- Topic is `match:<match id>`. Phones must join with `private: true`.
+- Only seated players can listen. There is no send rule, so phones cannot broadcast.
+- The API sends with `realtime.send()` inside the move's transaction.
+- A database broadcast can be dropped if no client has connected recently. Phones recover through the missing-version check, so this never corrupts state.
+
+## Local setup
+
+1. `supabase gen signing-key --algorithm ES256 > supabase/signing_keys.json` (once; the file is git-ignored).
+2. `supabase start`. This project uses ports 55420–55429 so it can run next to other local Supabase projects.
+3. Copy each app's `.env.example` to `.env`. Add the publishable key from `supabase status`.
+4. `pnpm dev`.
 
 ## Board rendering
 

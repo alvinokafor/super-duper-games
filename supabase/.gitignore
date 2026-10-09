@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Local JWT signing key (private)
+signing_keys.json
