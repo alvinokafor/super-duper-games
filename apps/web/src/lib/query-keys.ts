@@ -1,0 +1,15 @@
+export const queryKeys = {
+  me: ["me"] as const,
+  profile: ["profile"] as const,
+  friends: ["friends"] as const,
+  friendRequests: ["friends", "requests"] as const,
+  groups: ["groups"] as const,
+  group: (groupId: string) => ["groups", groupId] as const,
+  groupMessages: (groupId: string) => ["groups", groupId, "messages"] as const,
+  games: ["games"] as const,
+  game: (gameId: string) => ["games", gameId] as const,
+  room: (roomId: string) => ["rooms", roomId] as const,
+  match: (matchId: string) => ["matches", matchId] as const,
+  matchEvents: (matchId: string) => ["matches", matchId, "events"] as const,
+  matchHistory: ["matches", "history"] as const,
+};
