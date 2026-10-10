@@ -1,4 +1,5 @@
 import {
+  type CreateGroupInput,
   type GroupDetail,
   type GroupMessage,
   type GroupMessagesPage,
@@ -9,6 +10,7 @@ import {
   groupMessagesPageSchema,
   groupsResponseSchema,
   type PublicProfile,
+  type UpdateGroupInput,
 } from "@bankroll/contracts";
 import {
   type InfiniteData,
@@ -109,14 +111,28 @@ function useGroupMutation<T>(mutationFn: (input: T) => Promise<GroupDetail>) {
 }
 
 export const useCreateGroup = () =>
-  useGroupMutation((input: { name: string; memberIds: string[] }) =>
+  useGroupMutation((input: CreateGroupInput) =>
     api("/v1/groups", { method: "POST", body: input, schema: groupDetailSchema }),
   );
 
-export const useRenameGroup = (groupId: string) =>
-  useGroupMutation((name: string) =>
-    api(`/v1/groups/${groupId}`, { method: "PATCH", body: { name }, schema: groupDetailSchema }),
+export const useUpdateGroup = (groupId: string) =>
+  useGroupMutation((input: UpdateGroupInput) =>
+    api(`/v1/groups/${groupId}`, { method: "PATCH", body: input, schema: groupDetailSchema }),
   );
+
+// Clears the unread count straight away instead of waiting for the refetch.
+export function useMarkGroupRead(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api(`/v1/groups/${groupId}/read`, { method: "POST", schema: z.null() }),
+    onMutate: () => {
+      queryClient.setQueryData<z.infer<typeof groupsResponseSchema>>(queryKeys.groups, (data) =>
+        data ? { groups: data.groups.map((g) => (g.id === groupId ? { ...g, unreadCount: 0 } : g)) } : data,
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.groups, exact: true }),
+  });
+}
 
 export const useAddGroupMembers = (groupId: string) =>
   useGroupMutation((userIds: string[]) =>

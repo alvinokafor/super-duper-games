@@ -7,9 +7,10 @@ export const roomChannelName = (roomId: string) => `room:${roomId}` as const;
 
 export const MATCH_EVENT = "match_event";
 
-// Sent on user:<id>. Tells the app which lists to refetch.
+// Sent on user:<id>. Tells the app which lists to refetch. group_activity
+// means a new message arrived, so only the groups list needs refetching.
 export const USER_EVENT = "user_event";
-export const userEventSchema = z.object({ type: z.enum(["friends_changed", "groups_changed"]) });
+export const userEventSchema = z.object({ type: z.enum(["friends_changed", "groups_changed", "group_activity"]) });
 export type UserEvent = z.infer<typeof userEventSchema>;
 
 // Sent on group:<id>. The payload is a GroupMessage.

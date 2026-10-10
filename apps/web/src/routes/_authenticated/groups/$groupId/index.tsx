@@ -8,7 +8,7 @@ import {
 import { GAME_ID } from "@bankroll/lagos-rules";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { BackIcon, SendIcon } from "@/components/icons";
 import { Avatar, Button, ErrorText, errorMessage, GroupBadge, Muted, personTextColor, Screen } from "@/components/ui";
 import { meQuery } from "@/features/auth/queries/me";
@@ -16,8 +16,10 @@ import { ArtTile, lagosArt } from "@/features/games/art";
 import {
   groupMessagesQuery,
   groupQuery,
+  groupsQuery,
   isPendingMessage,
   putMessageInCache,
+  useMarkGroupRead,
   useSendGroupMessage,
 } from "@/features/groups/api";
 import { useCreateRoom } from "@/features/rooms/api";
@@ -38,6 +40,14 @@ function GroupChatPage() {
   const group = useQuery(groupQuery(groupId));
   const messages = useInfiniteQuery(groupMessagesQuery(groupId));
   const createRoom = useCreateRoom();
+  const { mutate: markRead } = useMarkGroupRead(groupId);
+
+  const unread = useQuery({ ...groupsQuery, select: (d) => d.groups.find((g) => g.id === groupId)?.unreadCount ?? 0 });
+  const newest = messages.data?.pages[0]?.messages.find((m) => !isPendingMessage(m));
+  const newestFromOthers = newest && newest.sender?.id !== me.data?.id ? newest.id : null;
+  useEffect(() => {
+    if (newestFromOthers || unread.data) markRead();
+  }, [newestFromOthers, unread.data, markRead]);
 
   useChannel(
     groupChannelName(groupId),

@@ -1,28 +1,9 @@
 import { users } from "../auth-schema"
 export { users as usersInAuth }
-import { pgTable, index, foreignKey, unique, check, uuid, text, timestamp, uniqueIndex, bigint, smallint, jsonb, boolean, integer, primaryKey } from "drizzle-orm/pg-core"
+import { pgTable, uniqueIndex, index, foreignKey, check, bigint, uuid, text, timestamp, unique, smallint, jsonb, boolean, integer, primaryKey } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
-
-export const groups = pgTable("groups", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	name: text().notNull(),
-	ownerId: uuid("owner_id").notNull(),
-	inviteCode: text("invite_code").notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("groups_owner_id_idx").using("btree", table.ownerId.asc().nullsLast().op("uuid_ops")),
-	foreignKey({
-			columns: [table.ownerId],
-			foreignColumns: [profiles.id],
-			name: "groups_owner_id_fkey"
-		}),
-	unique("groups_invite_code_key").on(table.inviteCode),
-	check("groups_name_check", sql`(char_length(name) >= 1) AND (char_length(name) <= 40)`),
-	check("groups_invite_code_check", sql`invite_code ~ '^[A-Z0-9]{8}$'::text`),
-]);
 
 export const groupMessages = pgTable("group_messages", {
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -56,6 +37,29 @@ export const groupMessages = pgTable("group_messages", {
 		}).onDelete("set null"),
 	check("group_messages_kind_check", sql`kind = ANY (ARRAY['text'::text, 'system'::text])`),
 	check("group_messages_body_check", sql`(char_length(body) >= 1) AND (char_length(body) <= 1000)`),
+]);
+
+export const groups = pgTable("groups", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	name: text().notNull(),
+	ownerId: uuid("owner_id").notNull(),
+	inviteCode: text("invite_code").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	color: text().default('brass').notNull(),
+	description: text(),
+}, (table) => [
+	index("groups_owner_id_idx").using("btree", table.ownerId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.ownerId],
+			foreignColumns: [profiles.id],
+			name: "groups_owner_id_fkey"
+		}),
+	unique("groups_invite_code_key").on(table.inviteCode),
+	check("groups_name_check", sql`(char_length(name) >= 1) AND (char_length(name) <= 40)`),
+	check("groups_invite_code_check", sql`invite_code ~ '^[A-Z0-9]{8}$'::text`),
+	check("groups_color_check", sql`color = ANY (ARRAY['brass'::text, 'lagoon'::text, 'navy'::text, 'rose'::text, 'violet'::text])`),
+	check("groups_description_check", sql`(char_length(description) >= 1) AND (char_length(description) <= 160)`),
 ]);
 
 export const profiles = pgTable("profiles", {
@@ -162,6 +166,8 @@ export const groupMembers = pgTable("group_members", {
 	groupId: uuid("group_id").notNull(),
 	userId: uuid("user_id").notNull(),
 	joinedAt: timestamp("joined_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	lastReadMessageId: bigint("last_read_message_id", { mode: "number" }),
 }, (table) => [
 	index("group_members_user_id_idx").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({

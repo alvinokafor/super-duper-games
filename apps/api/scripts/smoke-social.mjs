@@ -36,7 +36,7 @@ async function makeUser(name) {
       headers: { Authorization: `Bearer ${token}`, ...(body && { "Content-Type": "application/json" }) },
       body: body && JSON.stringify(body),
     });
-    return { status: res.status, body: await res.json() };
+    return { status: res.status, body: res.status === 204 ? null : await res.json() };
   };
   const me = (await call("/v1/me")).body;
   client.realtime.setAuth(token);
@@ -95,6 +95,8 @@ check((await a.call(`/v1/groups/${groupId}/members`, "POST", { userIds: [c.me.id
 await wait(500);
 check(cUserChannel.received.some((e) => e.type === "groups_changed"), "added player gets a live groups update");
 check((await c.call("/v1/groups")).body.groups.some((g) => g.id === groupId && g.memberCount === 3), "group shows in the list");
+const unreadFor = async (u) => (await u.call("/v1/groups")).body.groups.find((g) => g.id === groupId)?.unreadCount;
+check((await unreadFor(c)) === 0, "notes like \"Ada added Chidi\" don't count as unread");
 
 // Chat
 const cGroup = await c.listen(`group:${groupId}`, "group_message");
@@ -106,12 +108,25 @@ await wait(800);
 check(cGroup.received.filter((m) => m.body === "Who is playing tonight?").length === 1, "members get chat messages live, once");
 const page = await c.call(`/v1/groups/${groupId}/messages`);
 check(page.body.messages[0].id === sent.body.id && page.body.messages.some((m) => m.kind === "system"), "message history includes chat and system messages");
+check((await unreadFor(c)) === 1 && (await unreadFor(b)) === 0, "unread counts skip your own messages");
+await a.call(`/v1/groups/${groupId}/messages`, "POST", { body: "Me!", clientId: crypto.randomUUID() });
+await wait(500);
+check(cUserChannel.received.some((e) => e.type === "group_activity"), "members get a live nudge about new messages");
+check((await c.call(`/v1/groups/${groupId}/read`, "POST")).status === 204 && (await unreadFor(c)) === 0, "opening the chat clears unread");
+check((await unreadFor(b)) === 1, "other members still see their unread count");
+
+const outsider = await makeUser("dayo");
 let outsiderBlocked = false;
-try { await (await makeUser("dayo")).listen(`group:${groupId}`, "group_message"); } catch { outsiderBlocked = true; }
+try { await outsider.listen(`group:${groupId}`, "group_message"); } catch { outsiderBlocked = true; }
 check(outsiderBlocked, "outsiders cannot listen to group chat");
+check((await outsider.call(`/v1/groups/${groupId}/read`, "POST")).status === 404, "outsiders cannot mark a chat as read");
 
 // Owner rules and invite link
 check((await c.call(`/v1/groups/${groupId}`, "PATCH", { name: "Mine" })).status === 403, "only the owner can rename");
+const edited = await a.call(`/v1/groups/${groupId}`, "PATCH", { color: "navy", description: "  Saturday games  " });
+check(edited.body.color === "navy" && edited.body.description === "Saturday games", "owner sets colour and description");
+check((await a.call(`/v1/groups/${groupId}`, "PATCH", { description: "" })).body.description === null, "clearing the description removes it");
+check((await a.call(`/v1/groups/${groupId}`, "PATCH", { color: "pink" })).status === 400, "unknown colours are refused");
 check((await c.call(`/v1/groups/${groupId}/members/${b.me.id}`, "DELETE")).status === 403, "only the owner can remove others");
 check((await a.call(`/v1/groups/${groupId}/members/${c.me.id}`, "DELETE")).status === 200, "owner removes a member");
 const code = (await a.call(`/v1/groups/${groupId}`)).body.inviteCode;
@@ -123,10 +138,14 @@ check((await a.call(`/v1/groups/${groupId}/members/${a.me.id}`, "DELETE")).body.
 check((await b.call(`/v1/groups/${groupId}`)).body.ownerId === b.me.id, "longest-standing member becomes owner");
 
 // Rooms
+await b.call(`/v1/groups/${groupId}/read`, "POST");
+await c.call(`/v1/groups/${groupId}/read`, "POST");
 const room = await b.call("/v1/rooms", "POST", { gameId: "lagos-property", groupId });
 check(room.status === 201 && room.body.seats.length === 1, "room created from a group");
 await wait(500);
 check(cGroup.received.some((m) => m.kind === "system" && m.roomId === room.body.id), "group chat announces the room");
+check((await unreadFor(c)) === 1, "a new room counts as unread for other members");
+check((await unreadFor(b)) === 0, "a new room does not count as unread for the player who started it");
 const cRoom = await c.listen(`room:${room.body.id}`, "room_changed");
 check((await c.call(`/v1/rooms/${room.body.id}/join`, "POST")).body.seats.length === 2, "group member joins the room");
 check((await a.call(`/v1/rooms/${room.body.id}/join`, "POST")).body.seats.length === 3, "anyone with the link can join");

@@ -1,8 +1,19 @@
-import { GROUP_MEMBER_LIMIT, groupNameSchema } from "@bankroll/contracts";
+import { GROUP_MEMBER_LIMIT, type GroupColor, groupNameSchema } from "@bankroll/contracts";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { BottomBar, Button, ErrorText, errorMessage, GroupBadge, Screen, SectionLabel, TextField } from "@/components/ui";
+import {
+  BottomBar,
+  Button,
+  ErrorText,
+  errorMessage,
+  GroupBadge,
+  Screen,
+  SectionLabel,
+  TextArea,
+  TextField,
+} from "@/components/ui";
 import { useCreateGroup } from "@/features/groups/api";
+import { GroupColorPicker } from "@/features/groups/color-picker";
 import { FriendPicker } from "@/features/groups/friend-picker";
 
 export const Route = createFileRoute("/_authenticated/groups/new")({
@@ -13,6 +24,8 @@ function NewGroupPage() {
   const navigate = useNavigate();
   const create = useCreateGroup();
   const [name, setName] = useState("");
+  const [color, setColor] = useState<GroupColor>("brass");
+  const [description, setDescription] = useState("");
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +36,7 @@ function NewGroupPage() {
     if (memberIds.length > GROUP_MEMBER_LIMIT - 1) return setError(`Groups can have at most ${GROUP_MEMBER_LIMIT} members`);
     setError(null);
     try {
-      const group = await create.mutateAsync({ name: parsed.data, memberIds });
+      const group = await create.mutateAsync({ name: parsed.data, color, description, memberIds });
       await navigate({ to: "/groups/$groupId", params: { groupId: group.id }, replace: true });
     } catch (err) {
       setError(errorMessage(err));
@@ -45,17 +58,24 @@ function NewGroupPage() {
 
         <div className="mx-4 flex flex-col gap-3 rounded-[20px] bg-white p-4">
           <div className="flex items-center gap-[14px]">
-            <GroupBadge group={{ name: name || "?" }} size={72} />
-            <TextField
-              label="Group name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={40}
-              placeholder="Friday Night Table"
-              autoFocus
-              className="min-w-0 flex-1"
-            />
+            <GroupBadge group={{ name: name || "?", color }} size={72} />
+            <GroupColorPicker value={color} onChange={setColor} />
           </div>
+          <TextField
+            label="Group name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
+            placeholder="Friday Night Table"
+            autoFocus
+          />
+          <TextArea
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={160}
+            placeholder="Every Friday, 7pm. Loser buys suya."
+          />
         </div>
 
         <section className="flex flex-col gap-[6px] px-4 pt-[14px]">

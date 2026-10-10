@@ -36,6 +36,10 @@ export function greeting(now = new Date()) {
   return "Good evening";
 }
 
+export function formatCount(count: number) {
+  return count > 99 ? "99+" : String(count);
+}
+
 export function shortRoomCode(roomId: string) {
   return roomId.replaceAll("-", "").slice(0, 4).toUpperCase();
 }

@@ -57,6 +57,17 @@ export const relationshipResponseSchema = z.object({ relationship: relationshipS
 
 export const groupNameSchema = z.string().trim().min(1, "Enter a group name").max(40, "Use 40 characters or fewer");
 
+export const GROUP_COLORS = ["brass", "lagoon", "navy", "rose", "violet"] as const;
+export const groupColorSchema = z.enum(GROUP_COLORS);
+export type GroupColor = z.infer<typeof groupColorSchema>;
+
+// An empty description is stored as null.
+export const groupDescriptionSchema = z
+  .string()
+  .trim()
+  .max(160, "Use 160 characters or fewer")
+  .transform((v) => v || null);
+
 export const groupMessageSchema = z.object({
   id: z.number().int(),
   groupId: z.uuid(),
@@ -72,8 +83,12 @@ export type GroupMessage = z.infer<typeof groupMessageSchema>;
 export const groupSummarySchema = z.object({
   id: z.uuid(),
   name: z.string(),
+  color: groupColorSchema,
   ownerId: z.uuid(),
   memberCount: z.number().int(),
+  // Messages and room announcements from others since you last opened the
+  // chat. Notes like "Ada joined" don't count.
+  unreadCount: z.number().int(),
   lastMessage: groupMessageSchema.nullable(),
 });
 export type GroupSummary = z.infer<typeof groupSummarySchema>;
@@ -83,6 +98,8 @@ export const groupsResponseSchema = z.object({ groups: z.array(groupSummarySchem
 export const groupDetailSchema = z.object({
   id: z.uuid(),
   name: z.string(),
+  color: groupColorSchema,
+  description: z.string().nullable(),
   ownerId: z.uuid(),
   inviteCode: z.string(),
   memberLimit: z.number().int(),
@@ -92,10 +109,17 @@ export type GroupDetail = z.infer<typeof groupDetailSchema>;
 
 export const createGroupSchema = z.object({
   name: groupNameSchema,
+  color: groupColorSchema.default("brass"),
+  description: groupDescriptionSchema.default(null),
   memberIds: z.array(z.uuid()).max(GROUP_MEMBER_LIMIT - 1).default([]),
 });
+export type CreateGroupInput = z.input<typeof createGroupSchema>;
 
-export const updateGroupSchema = z.object({ name: groupNameSchema });
+export const updateGroupSchema = z
+  .object({ name: groupNameSchema, color: groupColorSchema, description: groupDescriptionSchema })
+  .partial()
+  .refine((v) => v.name !== undefined || v.color !== undefined || v.description !== undefined, "Nothing to update");
+export type UpdateGroupInput = z.input<typeof updateGroupSchema>;
 
 export const addGroupMembersSchema = z.object({
   userIds: z.array(z.uuid()).min(1).max(GROUP_MEMBER_LIMIT - 1),
@@ -116,6 +140,7 @@ export const sendGroupMessageSchema = z.object({
 export const groupInvitePreviewSchema = z.object({
   groupId: z.uuid(),
   name: z.string(),
+  color: groupColorSchema,
   memberCount: z.number().int(),
   isMember: z.boolean(),
   isFull: z.boolean(),

@@ -20,6 +20,7 @@ import { Route as AuthenticatedFriendsUserIdRouteImport } from './routes/_authen
 import { Route as AuthenticatedFriendsAddRouteImport } from './routes/_authenticated/friends/add'
 import { Route as AuthenticatedGamesIndexRouteImport } from './routes/_authenticated/games/index'
 import { Route as AuthenticatedGamesGameIdRouteImport } from './routes/_authenticated/games/$gameId'
+import { Route as AuthenticatedGamesHowToPlayRouteImport } from './routes/_authenticated/games/how-to-play'
 import { Route as AuthenticatedGroupsIndexRouteImport } from './routes/_authenticated/groups/index'
 import { Route as AuthenticatedGroupsNewRouteImport } from './routes/_authenticated/groups/new'
 import { Route as AuthenticatedJoinCodeRouteImport } from './routes/_authenticated/join/$code'
@@ -86,6 +87,12 @@ const AuthenticatedGamesGameIdRoute =
     path: '/games/$gameId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedGamesHowToPlayRoute =
+  AuthenticatedGamesHowToPlayRouteImport.update({
+    id: '/games/how-to-play',
+    path: '/games/how-to-play',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedGroupsIndexRoute =
   AuthenticatedGroupsIndexRouteImport.update({
     id: '/groups/',
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
   '/friends/add': typeof AuthenticatedFriendsAddRoute
   '/games/$gameId': typeof AuthenticatedGamesGameIdRoute
+  '/games/how-to-play': typeof AuthenticatedGamesHowToPlayRoute
   '/groups/new': typeof AuthenticatedGroupsNewRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
   '/friends/add': typeof AuthenticatedFriendsAddRoute
   '/games/$gameId': typeof AuthenticatedGamesGameIdRoute
+  '/games/how-to-play': typeof AuthenticatedGamesHowToPlayRoute
   '/groups/new': typeof AuthenticatedGroupsNewRoute
   '/join/$code': typeof AuthenticatedJoinCodeRoute
   '/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
@@ -184,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/friends/$userId': typeof AuthenticatedFriendsUserIdRoute
   '/_authenticated/friends/add': typeof AuthenticatedFriendsAddRoute
   '/_authenticated/games/$gameId': typeof AuthenticatedGamesGameIdRoute
+  '/_authenticated/games/how-to-play': typeof AuthenticatedGamesHowToPlayRoute
   '/_authenticated/groups/new': typeof AuthenticatedGroupsNewRoute
   '/_authenticated/join/$code': typeof AuthenticatedJoinCodeRoute
   '/_authenticated/matches/$matchId': typeof AuthenticatedMatchesMatchIdRoute
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/friends/$userId'
     | '/friends/add'
     | '/games/$gameId'
+    | '/games/how-to-play'
     | '/groups/new'
     | '/join/$code'
     | '/matches/$matchId'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/friends/$userId'
     | '/friends/add'
     | '/games/$gameId'
+    | '/games/how-to-play'
     | '/groups/new'
     | '/join/$code'
     | '/matches/$matchId'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/friends/$userId'
     | '/_authenticated/friends/add'
     | '/_authenticated/games/$gameId'
+    | '/_authenticated/games/how-to-play'
     | '/_authenticated/groups/new'
     | '/_authenticated/join/$code'
     | '/_authenticated/matches/$matchId'
@@ -346,6 +359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGamesGameIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/games/how-to-play': {
+      id: '/_authenticated/games/how-to-play'
+      path: '/games/how-to-play'
+      fullPath: '/games/how-to-play'
+      preLoaderRoute: typeof AuthenticatedGamesHowToPlayRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/groups/': {
       id: '/_authenticated/groups/'
       path: '/groups'
@@ -410,6 +430,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedFriendsUserIdRoute: typeof AuthenticatedFriendsUserIdRoute
   AuthenticatedFriendsAddRoute: typeof AuthenticatedFriendsAddRoute
   AuthenticatedGamesGameIdRoute: typeof AuthenticatedGamesGameIdRoute
+  AuthenticatedGamesHowToPlayRoute: typeof AuthenticatedGamesHowToPlayRoute
   AuthenticatedGroupsNewRoute: typeof AuthenticatedGroupsNewRoute
   AuthenticatedJoinCodeRoute: typeof AuthenticatedJoinCodeRoute
   AuthenticatedMatchesMatchIdRoute: typeof AuthenticatedMatchesMatchIdRoute
@@ -427,6 +448,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedFriendsUserIdRoute: AuthenticatedFriendsUserIdRoute,
   AuthenticatedFriendsAddRoute: AuthenticatedFriendsAddRoute,
   AuthenticatedGamesGameIdRoute: AuthenticatedGamesGameIdRoute,
+  AuthenticatedGamesHowToPlayRoute: AuthenticatedGamesHowToPlayRoute,
   AuthenticatedGroupsNewRoute: AuthenticatedGroupsNewRoute,
   AuthenticatedJoinCodeRoute: AuthenticatedJoinCodeRoute,
   AuthenticatedMatchesMatchIdRoute: AuthenticatedMatchesMatchIdRoute,

@@ -6,7 +6,7 @@ import { ErrorText, errorMessage, GroupBadge, headerActionClass, Muted, Screen, 
 import { meQuery } from "@/features/auth/queries/me";
 import { groupsQuery } from "@/features/groups/api";
 import { JoinByLink } from "@/features/rooms/join-by-link";
-import { formatListTime } from "@/lib/format";
+import { formatCount, formatListTime } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/groups/")({
   component: GroupsPage,
@@ -61,6 +61,8 @@ function GroupCard({ group }: { group: GroupSummary }) {
     else preview = `${last.sender.displayName.split(" ")[0]}: ${last.body}`;
   }
 
+  const unread = group.unreadCount > 0;
+
   return (
     <div
       className={`flex flex-col gap-[10px] rounded-[18px] bg-white p-3 ${openRoom ? "border-[1.5px] border-danfo" : ""}`}
@@ -71,12 +73,25 @@ function GroupCard({ group }: { group: GroupSummary }) {
           <div className="flex items-baseline justify-between gap-2">
             <p className="truncate text-body leading-5 font-black text-ink">{group.name}</p>
             {last && (
-              <span className="shrink-0 text-caption leading-caption font-semibold text-muted">
+              <span
+                className={`shrink-0 text-caption leading-caption ${unread ? "font-bold text-lagoon" : "font-semibold text-muted"}`}
+              >
                 {formatListTime(last.createdAt)}
               </span>
             )}
           </div>
-          <p className="truncate text-label leading-[18px] text-ink-soft">{preview}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p
+              className={`truncate text-label leading-[18px] ${unread ? "font-semibold text-ink" : "text-ink-soft"}`}
+            >
+              {preview}
+            </p>
+            {unread && (
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-lagoon px-[6px] text-[11px] leading-[14px] font-black text-white">
+                {formatCount(group.unreadCount)}
+              </span>
+            )}
+          </div>
         </div>
       </Link>
       {openRoom && (

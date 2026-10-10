@@ -1,4 +1,4 @@
-import { GROUP_CHANGED_EVENT, groupChannelName, groupNameSchema } from "@bankroll/contracts";
+import { GROUP_CHANGED_EVENT, type GroupDetail, groupChannelName, groupNameSchema } from "@bankroll/contracts";
 import { GAME_ID } from "@bankroll/lagos-rules";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -15,15 +15,17 @@ import {
   Muted,
   Screen,
   SectionLabel,
+  TextArea,
   TextField,
 } from "@/components/ui";
 import {
   groupQuery,
   useAddGroupMembers,
   useRemoveGroupMember,
-  useRenameGroup,
   useResetGroupInvite,
+  useUpdateGroup,
 } from "@/features/groups/api";
+import { GroupColorPicker } from "@/features/groups/color-picker";
 import { FriendPicker } from "@/features/groups/friend-picker";
 import { useCreateRoom } from "@/features/rooms/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -54,8 +56,12 @@ function GroupInfoPage() {
         <BackIcon />
       </Link>
       {group.data?.ownerId === userId && (
-        <button type="button" onClick={() => setEditing((v) => !v)} className="text-body leading-[18px] font-black text-lagoon">
-          {editing ? "Done" : "Edit"}
+        <button
+          type="button"
+          onClick={() => setEditing((v) => !v)}
+          className={`text-body leading-[18px] ${editing ? "font-bold text-ink-soft" : "font-black text-lagoon"}`}
+        >
+          {editing ? "Cancel" : "Edit"}
         </button>
       )}
     </div>
@@ -96,17 +102,17 @@ function GroupInfoPage() {
     <Screen>
       {header}
 
-      <div className="flex flex-col items-center gap-1 px-4 pb-3">
-        <GroupBadge group={g} size={76} />
-        {editing ? (
-          <RenameGroup groupId={groupId} name={g.name} onDone={() => setEditing(false)} />
-        ) : (
+      {editing ? (
+        <EditGroup group={g} onDone={() => setEditing(false)} />
+      ) : (
+        <div className="flex flex-col items-center gap-1 px-4 pb-3">
+          <GroupBadge group={g} size={76} />
           <h1 className="mt-[6px] text-center text-[22px] leading-[26px] font-black tracking-tight text-ink">{g.name}</h1>
-        )}
-        <p className="text-center text-label leading-[18px] text-ink-soft">
-          {g.members.length} of {g.memberLimit} members
-        </p>
-      </div>
+          <p className="text-center text-label leading-[18px] text-ink-soft">
+            {g.description ?? `${g.members.length} of ${g.memberLimit} members`}
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2 px-4">
         <Button size="md" variant="danfo" className="flex-1" disabled={createRoom.isPending} onClick={startGame}>
@@ -194,36 +200,42 @@ function GroupInfoPage() {
   );
 }
 
-function RenameGroup({ groupId, name, onDone }: { groupId: string; name: string; onDone: () => void }) {
-  const rename = useRenameGroup(groupId);
-  const [value, setValue] = useState(name);
+function EditGroup({ group, onDone }: { group: GroupDetail; onDone: () => void }) {
+  const update = useUpdateGroup(group.id);
+  const [name, setName] = useState(group.name);
+  const [color, setColor] = useState(group.color);
+  const [description, setDescription] = useState(group.description ?? "");
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const parsed = groupNameSchema.safeParse(value);
+    const parsed = groupNameSchema.safeParse(name);
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Enter a name");
     setError(null);
-    if (parsed.data === name) return onDone();
-    rename.mutate(parsed.data, { onSuccess: onDone, onError: (err) => setError(errorMessage(err)) });
+    update.mutate(
+      { name: parsed.data, color, description },
+      { onSuccess: onDone, onError: (err) => setError(errorMessage(err)) },
+    );
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-[6px] flex w-full flex-col gap-2">
-      <div className="flex items-end gap-2">
-        <TextField
-          label="Group name"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          maxLength={40}
-          autoFocus
-          className="min-w-0 flex-1"
-        />
-        <Button type="submit" size="form" variant="lagoon" className="h-[46px]" disabled={rename.isPending}>
-          Save
-        </Button>
+    <form onSubmit={onSubmit} className="mx-4 mb-3 flex flex-col gap-3 rounded-[20px] bg-white p-4">
+      <div className="flex items-center gap-[14px]">
+        <GroupBadge group={{ name: name || "?", color }} size={72} />
+        <GroupColorPicker value={color} onChange={setColor} />
       </div>
+      <TextField label="Group name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoFocus />
+      <TextArea
+        label="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        maxLength={160}
+        placeholder="What's this group about?"
+      />
       <ErrorText>{error}</ErrorText>
+      <Button type="submit" size="form" variant="lagoon" disabled={update.isPending}>
+        {update.isPending ? "Saving…" : "Save"}
+      </Button>
     </form>
   );
 }

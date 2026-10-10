@@ -4,9 +4,11 @@ import {
   GROUP_CHANGED_EVENT,
   GROUP_MEMBER_LIMIT,
   GROUP_MESSAGE_EVENT,
+  type GroupColor,
   type GroupDetail,
   type GroupMessage,
   groupChannelName,
+  groupColorSchema,
   sendGroupMessageSchema,
   updateGroupSchema,
 } from "@bankroll/contracts";
@@ -17,7 +19,7 @@ import { type Db, db, type Tx } from "../db/client";
 import { groupMembers, groupMessages, groups, profiles } from "../db/generated/schema";
 import { conflict, forbidden, notFound, parseOrThrow, readJson, toIso, uuidParam } from "../lib/http";
 import { profileColumns, randomCode } from "../lib/profiles";
-import { broadcast, notifyUsers } from "../lib/realtime";
+import { broadcast, notifyGroupMembers, notifyUsers } from "../lib/realtime";
 import type { AuthVariables } from "../middleware/auth";
 import { areFriends } from "./friends";
 
@@ -95,7 +97,13 @@ export async function postGroupMessage(
   if (!inserted) throw new Error("message insert returned nothing");
   const message = await loadMessage(tx, inserted.id);
   await broadcast(tx, groupChannelName(values.groupId), GROUP_MESSAGE_EVENT, message);
+  await notifyGroupMembers(tx, values.groupId, "group_activity", values.senderId);
   return message;
+}
+
+function toColor(value: string): GroupColor {
+  const parsed = groupColorSchema.safeParse(value);
+  return parsed.success ? parsed.data : "brass";
 }
 
 async function displayNames(executor: Db | Tx, ids: readonly string[]): Promise<Map<string, string>> {
@@ -115,7 +123,14 @@ function listNames(names: string[]): string {
 // Non-members get "not found" so group ids can't be probed.
 export async function requireMember(executor: Db | Tx, groupId: string, userId: string, lock = false) {
   const query = executor
-    .select({ id: groups.id, name: groups.name, ownerId: groups.ownerId, inviteCode: groups.inviteCode })
+    .select({
+      id: groups.id,
+      name: groups.name,
+      color: groups.color,
+      description: groups.description,
+      ownerId: groups.ownerId,
+      inviteCode: groups.inviteCode,
+    })
     .from(groups)
     .innerJoin(groupMembers, and(eq(groupMembers.groupId, groups.id), eq(groupMembers.userId, userId)))
     .where(eq(groups.id, groupId));
@@ -134,7 +149,14 @@ async function memberCount(executor: Db | Tx, groupId: string): Promise<number> 
 
 async function loadGroupDetail(executor: Db | Tx, groupId: string): Promise<GroupDetail> {
   const [group] = await executor
-    .select({ id: groups.id, name: groups.name, ownerId: groups.ownerId, inviteCode: groups.inviteCode })
+    .select({
+      id: groups.id,
+      name: groups.name,
+      color: groups.color,
+      description: groups.description,
+      ownerId: groups.ownerId,
+      inviteCode: groups.inviteCode,
+    })
     .from(groups)
     .where(eq(groups.id, groupId));
   if (!group) throw notFound("Group not found");
@@ -146,6 +168,7 @@ async function loadGroupDetail(executor: Db | Tx, groupId: string): Promise<Grou
     .orderBy(asc(groupMembers.joinedAt));
   return {
     ...group,
+    color: toColor(group.color),
     memberLimit: GROUP_MEMBER_LIMIT,
     members: members.map((m) => ({ ...m, joinedAt: toIso(m.joinedAt) })),
   };
@@ -172,9 +195,18 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
       .select({
         id: groups.id,
         name: groups.name,
+        color: groups.color,
         ownerId: groups.ownerId,
         createdAt: groups.createdAt,
         memberCount: sql<number>`(select count(*)::int from public.group_members gm where gm.group_id = ${groups.id})`,
+        unreadCount: sql<number>`(
+          select count(*)::int from public.group_messages m
+          where m.group_id = ${groups.id}
+            and m.id > coalesce(${groupMembers.lastReadMessageId}, 0)
+            and m.created_at >= ${groupMembers.joinedAt}
+            and m.sender_id is distinct from ${me}::uuid
+            and (m.kind = 'text' or m.room_id is not null)
+        )`,
       })
       .from(groups)
       .innerJoin(groupMembers, and(eq(groupMembers.groupId, groups.id), eq(groupMembers.userId, me)));
@@ -193,6 +225,7 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
     const summaries = rows
       .map(({ createdAt, ...g }) => ({
         ...g,
+        color: toColor(g.color),
         lastMessage: lastByGroup.get(g.id) ?? null,
         activityAt: lastByGroup.get(g.id)?.createdAt ?? toIso(createdAt),
       }))
@@ -213,7 +246,13 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
       for (let attempt = 0; attempt < 5 && !groupId; attempt++) {
         const [created] = await tx
           .insert(groups)
-          .values({ name: input.name, ownerId: me, inviteCode: randomCode(8) })
+          .values({
+            name: input.name,
+            color: input.color,
+            description: input.description,
+            ownerId: me,
+            inviteCode: randomCode(8),
+          })
           .onConflictDoNothing({ target: groups.inviteCode })
           .returning({ id: groups.id });
         groupId = created?.id;
@@ -239,18 +278,30 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
   .patch("/groups/:groupId", async (c) => {
     const me = c.get("userId");
     const groupId = uuidParam(c.req.param("groupId"));
-    const { name } = await readJson(c, updateGroupSchema);
+    const input = await readJson(c, updateGroupSchema);
 
     const detail = await db.transaction(async (tx) => {
       const group = await requireMember(tx, groupId, me, true);
-      if (group.ownerId !== me) throw forbidden("Only the group owner can rename the group");
-      if (group.name !== name) {
-        await tx.update(groups).set({ name, updatedAt: new Date().toISOString() }).where(eq(groups.id, groupId));
-        const names = await displayNames(tx, [me]);
-        await postGroupMessage(tx, { groupId, kind: "system", body: `${names.get(me)} renamed the group to "${name}"` });
-        await broadcast(tx, groupChannelName(groupId), GROUP_CHANGED_EVENT);
-        await notifyUsers(tx, (await loadGroupDetail(tx, groupId)).members.map((m) => m.id), "groups_changed");
+      if (group.ownerId !== me) throw forbidden("Only the group owner can edit the group");
+      const changes = {
+        name: input.name !== undefined && input.name !== group.name ? input.name : undefined,
+        color: input.color !== undefined && input.color !== group.color ? input.color : undefined,
+        description: input.description !== undefined && input.description !== group.description ? input.description : undefined,
+      };
+      if (changes.name === undefined && changes.color === undefined && changes.description === undefined) {
+        return loadGroupDetail(tx, groupId);
       }
+
+      await tx
+        .update(groups)
+        .set({ ...changes, updatedAt: new Date().toISOString() })
+        .where(eq(groups.id, groupId));
+      if (changes.name !== undefined) {
+        const names = await displayNames(tx, [me]);
+        await postGroupMessage(tx, { groupId, kind: "system", body: `${names.get(me)} renamed the group to "${changes.name}"` });
+      }
+      await broadcast(tx, groupChannelName(groupId), GROUP_CHANGED_EVENT);
+      await notifyGroupMembers(tx, groupId, "groups_changed");
       return loadGroupDetail(tx, groupId);
     });
 
@@ -365,7 +416,7 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
     const me = c.get("userId");
     const code = parseOrThrow(inviteCodeSchema, c.req.param("code"));
     const [group] = await db
-      .select({ id: groups.id, name: groups.name })
+      .select({ id: groups.id, name: groups.name, color: groups.color })
       .from(groups)
       .where(eq(groups.inviteCode, code));
     if (!group) throw notFound("This invite link is not valid any more");
@@ -379,6 +430,7 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
     return c.json({
       groupId: group.id,
       name: group.name,
+      color: toColor(group.color),
       memberCount: count,
       isMember: Boolean(membership),
       isFull: count >= GROUP_MEMBER_LIMIT,
@@ -459,8 +511,25 @@ export const groupRoutes = new Hono<{ Variables: AuthVariables }>()
 
       const saved = await loadMessage(tx, inserted.id);
       await broadcast(tx, groupChannelName(groupId), GROUP_MESSAGE_EVENT, saved);
+      await notifyGroupMembers(tx, groupId, "group_activity", me);
       return saved;
     });
 
     return c.json(message, 201);
+  })
+
+  // Marks everything in the chat as read for the caller.
+  .post("/groups/:groupId/read", async (c) => {
+    const me = c.get("userId");
+    const groupId = uuidParam(c.req.param("groupId"));
+    const updated = await db
+      .update(groupMembers)
+      .set({
+        lastReadMessageId: sql`(select max(m.id) from public.group_messages m where m.group_id = ${groupId})`,
+      })
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, me)))
+      .returning({ userId: groupMembers.userId });
+    if (updated.length === 0) throw notFound("Group not found");
+    await notifyUsers(db, [me], "group_activity");
+    return c.body(null, 204);
   });

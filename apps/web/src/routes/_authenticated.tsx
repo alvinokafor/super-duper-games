@@ -4,6 +4,8 @@ import { createFileRoute, Link, Outlet, redirect, useMatches } from "@tanstack/r
 import { TabIcon } from "@/components/icons";
 import { getSession } from "@/features/auth/session";
 import { friendsQuery } from "@/features/friends/api";
+import { groupsQuery } from "@/features/groups/api";
+import { formatCount } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { useChannel } from "@/lib/realtime";
 
@@ -52,6 +54,9 @@ function AuthenticatedLayout() {
         if (!event.success) return;
         if (event.data.type === "friends_changed") void queryClient.invalidateQueries({ queryKey: queryKeys.friends });
         if (event.data.type === "groups_changed") void queryClient.invalidateQueries({ queryKey: queryKeys.groups });
+        if (event.data.type === "group_activity") {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.groups, exact: true });
+        }
       },
     },
     refreshLists,
@@ -69,7 +74,11 @@ function AuthenticatedLayout() {
 
 function TabBar() {
   const friends = useQuery(friendsQuery);
-  const requests = friends.data?.incoming.length ?? 0;
+  const groups = useQuery(groupsQuery);
+  const badges: Partial<Record<(typeof tabs)[number]["icon"], number>> = {
+    friends: friends.data?.incoming.length ?? 0,
+    groups: groups.data?.groups.reduce((sum, g) => sum + g.unreadCount, 0) ?? 0,
+  };
 
   return (
     <nav className="flex justify-around border-t border-edge bg-white px-2 pt-[10px] pb-[max(28px,env(safe-area-inset-bottom))]">
@@ -88,9 +97,9 @@ function TabBar() {
               >
                 {tab.label}
               </span>
-              {tab.icon === "friends" && requests > 0 && (
+              {(badges[tab.icon] ?? 0) > 0 && (
                 <span className="absolute top-[-3px] left-[38px] flex h-4 min-w-4 items-center justify-center rounded-pill bg-alert px-1 text-[10px] leading-3 font-black text-white">
-                  {requests}
+                  {formatCount(badges[tab.icon] ?? 0)}
                 </span>
               )}
             </>

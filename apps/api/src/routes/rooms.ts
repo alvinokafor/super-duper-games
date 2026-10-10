@@ -94,6 +94,7 @@ export const roomRoutes = new Hono<{ Variables: AuthVariables }>()
           groupId,
           kind: "system",
           body: `${host?.displayName ?? "Someone"} started a ${game.name} room`,
+          senderId: me,
           roomId,
         });
       }

@@ -15,7 +15,7 @@ function RootLayout() {
   return (
     <div className="mx-auto flex h-full max-w-md flex-col">
       <Outlet />
-      {import.meta.env.DEV && (
+      {import.meta.env.VITE_DEVTOOLS === "true" && (
         <>
           <ReactQueryDevtools buttonPosition="top-right" />
           <TanStackRouterDevtools position="top-left" />

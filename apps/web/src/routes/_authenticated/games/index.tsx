@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AyoIcon, WhotIcon } from "@/components/icons";
-import { ErrorText, errorMessage, Screen, ScreenTitle, SectionTitle } from "@/components/ui";
+import { Chip, ErrorText, errorMessage, Screen, ScreenTitle, SectionTitle } from "@/components/ui";
 import { ArtTile, lagosArt } from "@/features/games/art";
 import { gamesQuery } from "@/features/rooms/api";
 
@@ -45,13 +45,21 @@ function GamesPage() {
             <Chip>45–60 min</Chip>
             <Chip>Board game</Chip>
           </div>
-          <Link
-            to="/games/$gameId"
-            params={{ gameId: GAME_ID }}
-            className="mt-[10px] flex h-[52px] items-center justify-center rounded-[14px] bg-danfo text-[16px] leading-5 font-black text-ink"
-          >
-            Play
-          </Link>
+          <div className="mt-[10px] flex gap-[10px]">
+            <Link
+              to="/games/$gameId"
+              params={{ gameId: GAME_ID }}
+              className="flex h-[52px] flex-1 items-center justify-center rounded-[14px] bg-danfo text-[16px] leading-5 font-black text-ink"
+            >
+              Play
+            </Link>
+            <Link
+              to="/games/how-to-play"
+              className="flex h-[52px] shrink-0 items-center justify-center rounded-[14px] border-[1.5px] border-edge bg-white px-4 text-body leading-[18px] font-black text-ink"
+            >
+              How to play
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -63,12 +71,6 @@ function GamesPage() {
         </div>
       </section>
     </Screen>
-  );
-}
-
-function Chip({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-pill bg-chip px-[9px] py-[5px] text-caption leading-caption font-bold text-ink">{children}</span>
   );
 }
 

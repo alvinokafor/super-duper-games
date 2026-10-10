@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type { GroupColor } from "@bankroll/contracts";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { ClearIcon, SearchIcon } from "./icons";
 
 // ---------------------------------------------------------------------------
@@ -165,14 +166,13 @@ export function personTextColor(id: string) {
   return pick(personTextColors, id);
 }
 
-const groupColors = [
-  "bg-danfo text-ink",
-  "bg-navy text-white",
-  "bg-rose text-white",
-  "bg-teal text-white",
-  "bg-violet text-white",
-  "bg-brass text-white",
-] as const;
+export const groupColorClass: Record<GroupColor, string> = {
+  brass: "bg-brass",
+  lagoon: "bg-lagoon",
+  navy: "bg-navy",
+  rose: "bg-rose",
+  violet: "bg-violet",
+};
 
 const groupBadgeSizes = {
   36: "size-9 rounded-[12px] text-[14px] leading-[18px]",
@@ -183,14 +183,25 @@ const groupBadgeSizes = {
   76: "size-[76px] rounded-sheet text-[26px] leading-8",
 } as const;
 
-// Coloured by name so the preview while creating a group matches the result.
-export function GroupBadge({ group, size = 52 }: { group: { name: string }; size?: keyof typeof groupBadgeSizes }) {
+export function GroupBadge({
+  group,
+  size = 52,
+}: {
+  group: { name: string; color: GroupColor };
+  size?: keyof typeof groupBadgeSizes;
+}) {
   return (
     <div
-      className={`${groupBadgeSizes[size]} ${pick(groupColors, group.name.trim().toLowerCase())} flex shrink-0 items-center justify-center font-black`}
+      className={`${groupBadgeSizes[size]} ${groupColorClass[group.color]} flex shrink-0 items-center justify-center font-black text-white`}
     >
       {initialsOf(group.name)}
     </div>
+  );
+}
+
+export function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-pill bg-chip px-[9px] py-[5px] text-caption leading-caption font-bold text-ink">{children}</span>
   );
 }
 
@@ -223,6 +234,23 @@ export function TextField({
       {label && <span className="text-caption leading-caption font-bold text-ink-soft">{label}</span>}
       <input {...props} className={fieldClass} />
       {hint}
+    </label>
+  );
+}
+
+export function TextArea({
+  label,
+  className = "",
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
+  return (
+    <label className={`flex flex-col gap-[6px] ${className}`}>
+      {label && <span className="text-caption leading-caption font-bold text-ink-soft">{label}</span>}
+      <textarea
+        rows={2}
+        {...props}
+        className="min-h-[46px] w-full resize-none rounded-[12px] border border-edge bg-white px-[14px] py-3 text-[14px] leading-[19px] text-ink outline-none placeholder:text-muted focus:border-lagoon focus:shadow-[0_0_0_0.5px_#206B52]"
+      />
     </label>
   );
 }

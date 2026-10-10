@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(24);
 
 -- ---------------------------------------------------------------------------
 -- Setup
@@ -117,6 +117,20 @@ select throws_ok(
   '23514',
   null,
   'group invite codes are 8 uppercase letters or digits'
+);
+
+select throws_ok(
+  $$update public.groups set color = 'pink' where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
+  '23514',
+  null,
+  'group colour must be one of the five design colours'
+);
+
+select throws_ok(
+  $$update public.groups set description = '' where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'$$,
+  '23514',
+  null,
+  'an empty group description is stored as null, not an empty string'
 );
 
 select throws_ok(
