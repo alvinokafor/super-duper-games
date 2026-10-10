@@ -6,5 +6,7 @@ export default defineConfig({
   target: "node24",
   platform: "node",
   clean: true,
-  noExternal: [/^@bankroll\//],
+  // One self-contained file, so the server image needs no node_modules.
+  noExternal: [/.*/],
+  banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
 });

@@ -165,7 +165,22 @@ Live channels (phones must join with `private: true`):
 2. `supabase start`. This project uses ports 55420–55429 so it can run next to other local Supabase projects.
 3. Copy each app's `.env.example` to `.env`. Add the publishable key from `supabase status`.
 4. `pnpm dev`.
-5. To check accounts, friends, groups, chat and rooms end to end against the running API: `SUPABASE_PUBLISHABLE_KEY=… SUPABASE_SECRET_KEY=… pnpm --filter @bankroll/api smoke:social` (both keys from `supabase status`; local only). `smoke:match` does the same for starting and playing a match; it waits about 30 seconds at the end for the turn timer.
+5. To check accounts, friends, groups, chat and rooms end to end against the running API: `SUPABASE_PUBLISHABLE_KEY=… SUPABASE_SECRET_KEY=… pnpm --filter @bankroll/api smoke:social` (both keys from `supabase status`; local only). `smoke:match` does the same for starting and playing a match; it waits about a minute at the end for the turn timer.
+
+## Production
+
+| Part | Where |
+|---|---|
+| Database, login, live updates | Supabase project `lagos-property` (`suzhmczhjoyalrctwjnt`, eu-west-1) |
+| API | Fly.io app `lagos-property-api`, London, one machine always on |
+| Web app | Vercel project with root directory `apps/web` |
+
+- **Database changes:** `supabase db push --linked`. Check first with `--dry-run`.
+- **API:** from the repo root, `fly deploy . --config apps/api/fly.toml --dockerfile apps/api/Dockerfile`. The build bundles everything into one file. Secrets are set with `fly secrets set`:
+  - `DATABASE_URL`: the session pooler address from the Supabase dashboard (port 5432, not the transaction pooler on 6543), ending in `?sslmode=require`.
+  - `WEB_ORIGIN`: the Vercel site address.
+- **Web:** Vercel builds `apps/web` using `apps/web/vercel.json`. Set `VITE_API_URL` (the Fly address), `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` and `ENABLE_EXPERIMENTAL_COREPACK=1` (so Vercel uses the pnpm version in `package.json`).
+- **Supabase auth settings:** set the Site URL and redirect URLs to the Vercel address.
 
 ## Board rendering
 
