@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { publicProfileSchema } from "./social";
 
 export const matchStatusSchema = z.enum(["active", "finished", "abandoned"]);
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
@@ -49,3 +50,25 @@ export const matchUpdateSchema = <TState extends z.ZodType, TEvent extends z.Zod
     snapshot: matchSnapshotSchema(state),
     applied: matchEventEnvelopeSchema(event),
   });
+
+/** First load of a match: the snapshot plus profiles for every seated player. */
+export const matchViewSchema = <TState extends z.ZodType>(state: TState) =>
+  z.object({
+    snapshot: matchSnapshotSchema(state),
+    players: z.array(publicProfileSchema),
+  });
+
+export const matchMessageSchema = z.object({
+  id: z.number().int(),
+  matchId: z.uuid(),
+  sender: publicProfileSchema,
+  body: z.string(),
+  createdAt: z.string(),
+});
+export type MatchMessage = z.infer<typeof matchMessageSchema>;
+
+export const matchMessagesResponseSchema = z.object({ messages: z.array(matchMessageSchema) });
+
+export const sendMatchMessageSchema = z.object({
+  body: z.string().trim().min(1).max(280),
+});

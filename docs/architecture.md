@@ -12,7 +12,7 @@ The server owns every game outcome. The web app shows a synced copy of the match
 | Routing | TanStack Router, file-based, typed params and search |
 | Server data | TanStack Query |
 | Local game and UI state | Zustand |
-| Board | PixiJS |
+| Board | Plain page elements (CSS grid) |
 | API | Hono on Node, always-on, hosted on Fly.io |
 | Database | Supabase Postgres, queried from Hono with Drizzle |
 | Login | Supabase Auth |
@@ -22,7 +22,7 @@ The server owns every game outcome. The web app shows a synced copy of the match
 ## Repo layout
 
 ```text
-apps/web               React app: routes, queries, stores, Pixi board
+apps/web               React app: routes, queries, stores, board
 apps/api               Hono service: login checks, commands, turn-timer worker
 packages/contracts     Shared request, snapshot and event shapes
 packages/lagos-rules   Lagos rules. No network or database code. Fully tested.
@@ -35,21 +35,23 @@ The web app may import `lagos-rules` for labels, hints and types. It must never 
 ## Who owns what
 
 - **TanStack Query:** profile, friends, groups, chat history, game list, rooms, match history, the first match load, and all commands sent to the API.
-- **Zustand:** the live copy of the match, the selected tile, the camera, animations, dialogs and sheets, and the HUD.
+- **Zustand:** the live copy of the match, the selected tile, the camera, animations, and the HUD.
 - **TanStack Router:** pages and login guards. Guards make the app easier to use. They are not security. Hono checks every request. `/` is the signed-in home. Signed-out visitors go to `/login`.
 
 Match stores live in `apps/web/src/features/match/stores/`:
 
 - `game-session.store.ts`: match id, version, public game state. Only the sync layer writes to it.
 - `board-ui.store.ts`: selected tile, zoom, camera.
-- `game-animation.store.ts`: dice, token movement, payouts, building, EFCC raids. Never changes money.
-- `game-dialog.store.ts`: which sheet or dialog is open. Holds ids, not copies of game data.
+- `game-animation.store.ts`: dice, token movement, payouts, building, EFCC raids. Never changes money. Cleared when a reload jumps the board ahead.
+
+Which sheet is open is local to the match page.
 
 ## Data access
 
 - The app talks to Supabase directly only for **login** and **listening to live channels**.
 - Everything else goes through Hono: friends, groups, chat, rooms, matches, and commands.
-- Phones never read game tables. Hono sends a public view of the match with the card deck order and dice setup removed.
+- Phones never read game tables. Hono sends a public view of the match with hidden data, such as card deck order, removed.
+- Every die roll and the turn-order shuffle use Node's secure `crypto.randomInt`, so past rolls say nothing about future ones.
 
 ## How a move works
 
@@ -89,7 +91,7 @@ A page refresh repeats step 1, so the match always comes back from the server.
 
 ## Turn timer
 
-Each turn has a deadline stored with the match. A worker inside the Hono service finds overdue matches and plays the default move through the same steps as a normal move. It skips matches that are already locked, so running more than one copy of the service is safe.
+Each turn phase has a deadline stored with the match: 30 seconds to roll, 30 to decide on a purchase, 30 for other actions. The deadline is set by the database clock, the same clock the worker checks. A worker inside the Hono service finds overdue matches and plays the default move through the same steps as a normal move. It skips matches that are already locked, so running more than one copy of the service is safe.
 
 Phones show time left from the server deadline. They do not count down in a store.
 
@@ -163,16 +165,20 @@ Live channels (phones must join with `private: true`):
 2. `supabase start`. This project uses ports 55420–55429 so it can run next to other local Supabase projects.
 3. Copy each app's `.env.example` to `.env`. Add the publishable key from `supabase status`.
 4. `pnpm dev`.
-5. To check accounts, friends, groups, chat and rooms end to end against the running API: `SUPABASE_PUBLISHABLE_KEY=… SUPABASE_SECRET_KEY=… pnpm --filter @bankroll/api smoke:social` (both keys from `supabase status`; local only).
+5. To check accounts, friends, groups, chat and rooms end to end against the running API: `SUPABASE_PUBLISHABLE_KEY=… SUPABASE_SECRET_KEY=… pnpm --filter @bankroll/api smoke:social` (both keys from `supabase status`; local only). `smoke:match` does the same for starting and playing a match; it waits about 30 seconds at the end for the turn timer.
 
 ## Board rendering
 
-- Create the Pixi app once per match screen.
-- Subscribe to only the store parts each layer needs.
-- Update only the sprites that changed.
-- Animate from server events.
-- On leaving, remove subscriptions, textures and scene objects.
-- Pixi never holds its own copy of money or ownership.
+- The board is plain page elements on an 8×8 grid, drawn to match the Paper design. This keeps text sharp and tiles easy to tap and read with a screen reader.
+- Tiles read straight from the session store. The board never holds its own copy of money or ownership.
+- Animations (the die, the payday card) replay server events from the animation queue. They never change game data.
+- A graphics engine can be added later for effects such as raids if plain elements are not enough.
+
+## Match chat
+
+Each match has its own chat, separate from the group chat. Only seated players can read or post. Messages are saved in `match_messages` and sent on the match's live channel. Each player can send at most 5 messages in 10 seconds.
+
+When a match ends, its room closes. Seated players can still open the match from the room to see the results.
 
 ## Adding more games
 
@@ -181,5 +187,4 @@ The platform (home, friends, groups, rooms, profile, match route) does not know 
 ## Open items
 
 - Design the 6-player strip for the match screen. Current designs show 4 players.
-- Set round limits per player count from simulations. `ROUNDS_BY_LENGTH` still holds placeholders and will be replaced.
-- Starting a match from a room lobby comes with the Lagos Property build.
+- Set round limits per player count from simulations. `ROUNDS_BY_PLAYER_COUNT` holds placeholders until then.

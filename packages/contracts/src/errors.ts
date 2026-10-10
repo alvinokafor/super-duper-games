@@ -8,7 +8,10 @@ export const apiErrorCodeSchema = z.enum([
   "conflict",
   "not_your_turn",
   "illegal_move",
+  "not_enough_cash",
+  "match_finished",
   "version_conflict",
+  "rate_limited",
   "internal",
 ]);
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

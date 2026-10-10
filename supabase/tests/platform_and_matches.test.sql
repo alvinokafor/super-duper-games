@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(20);
 
 -- ---------------------------------------------------------------------------
 -- Setup
@@ -111,6 +111,7 @@ select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-1111111
 select throws_ok('select * from public.profiles', '42501', null, 'signed-in users cannot read profiles');
 select throws_ok('select * from public.matches', '42501', null, 'signed-in users cannot read match state');
 select throws_ok('select * from public.match_states', '42501', null, 'signed-in users cannot read saved states');
+select throws_ok('select * from public.match_messages', '42501', null, 'signed-in users cannot read match chat');
 select throws_ok(
   $$update public.matches set version = 99$$,
   '42501',

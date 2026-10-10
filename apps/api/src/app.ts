@@ -8,6 +8,7 @@ import { ApiHttpError } from "./lib/http";
 import { type AuthVariables, requireAuth } from "./middleware/auth";
 import { friendRoutes } from "./routes/friends";
 import { groupRoutes } from "./routes/groups";
+import { matchRoutes } from "./routes/matches";
 import { meRoutes, publicMeRoutes } from "./routes/me";
 import { roomRoutes } from "./routes/rooms";
 
@@ -35,7 +36,8 @@ export const app = new Hono<{ Variables: AuthVariables }>()
   .route("/v1", meRoutes)
   .route("/v1", friendRoutes)
   .route("/v1", groupRoutes)
-  .route("/v1", roomRoutes);
+  .route("/v1", roomRoutes)
+  .route("/v1", matchRoutes);
 
 app.onError((err, c) => {
   const status = err instanceof HTTPException ? err.status : 500;

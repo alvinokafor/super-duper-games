@@ -161,6 +161,8 @@ export const roomSchema = z.object({
   minPlayers: z.number().int(),
   maxPlayers: z.number().int(),
   groupId: z.uuid().nullable(),
+  /** Set once the host starts the match. */
+  matchId: z.uuid().nullable(),
   seats: z.array(z.object({ seat: z.number().int(), player: publicProfileSchema })),
 });
 export type Room = z.infer<typeof roomSchema>;

@@ -62,6 +62,29 @@ export const groups = pgTable("groups", {
 	check("groups_description_check", sql`(char_length(description) >= 1) AND (char_length(description) <= 160)`),
 ]);
 
+export const matchMessages = pgTable("match_messages", {
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity({ name: "match_messages_id_seq", startWith: 1, increment: 1, minValue: 1, maxValue: 9223372036854775807, cache: 1 }),
+	matchId: uuid("match_id").notNull(),
+	senderId: uuid("sender_id").notNull(),
+	body: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("match_messages_match_id_id_idx").using("btree", table.matchId.asc().nullsLast().op("int8_ops"), table.id.asc().nullsLast().op("int8_ops")),
+	index("match_messages_sender_id_idx").using("btree", table.senderId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.matchId],
+			foreignColumns: [matches.id],
+			name: "match_messages_match_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.senderId],
+			foreignColumns: [profiles.id],
+			name: "match_messages_sender_id_fkey"
+		}).onDelete("cascade"),
+	check("match_messages_body_check", sql`(char_length(body) >= 1) AND (char_length(body) <= 280)`),
+]);
+
 export const profiles = pgTable("profiles", {
 	id: uuid().primaryKey().notNull(),
 	displayName: text("display_name").notNull(),

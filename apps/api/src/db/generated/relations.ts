@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { groups, groupMessages, profiles, rooms, usersInAuth, games, matches, groupMembers, roomSeats, matchPlayers, matchStates, matchResults, friendships, matchEvents } from "./schema";
+import { groups, groupMessages, profiles, rooms, matches, matchMessages, usersInAuth, games, groupMembers, roomSeats, matchPlayers, matchStates, matchResults, friendships, matchEvents } from "./schema";
 
 export const groupMessagesRelations = relations(groupMessages, ({one}) => ({
 	group: one(groups, {
@@ -29,6 +29,7 @@ export const groupsRelations = relations(groups, ({one, many}) => ({
 export const profilesRelations = relations(profiles, ({one, many}) => ({
 	groupMessages: many(groupMessages),
 	groups: many(groups),
+	matchMessages: many(matchMessages),
 	usersInAuth: one(usersInAuth, {
 		fields: [profiles.id],
 		references: [usersInAuth.id]
@@ -64,16 +65,19 @@ export const roomsRelations = relations(rooms, ({one, many}) => ({
 	roomSeats: many(roomSeats),
 }));
 
-export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
-	profiles: many(profiles),
-}));
-
-export const gamesRelations = relations(games, ({many}) => ({
-	rooms: many(rooms),
-	matches: many(matches),
+export const matchMessagesRelations = relations(matchMessages, ({one}) => ({
+	match: one(matches, {
+		fields: [matchMessages.matchId],
+		references: [matches.id]
+	}),
+	profile: one(profiles, {
+		fields: [matchMessages.senderId],
+		references: [profiles.id]
+	}),
 }));
 
 export const matchesRelations = relations(matches, ({one, many}) => ({
+	matchMessages: many(matchMessages),
 	room: one(rooms, {
 		fields: [matches.roomId],
 		references: [rooms.id]
@@ -84,6 +88,15 @@ export const matchesRelations = relations(matches, ({one, many}) => ({
 	}),
 	matchPlayers: many(matchPlayers),
 	matchStates: many(matchStates),
+}));
+
+export const usersInAuthRelations = relations(usersInAuth, ({many}) => ({
+	profiles: many(profiles),
+}));
+
+export const gamesRelations = relations(games, ({many}) => ({
+	rooms: many(rooms),
+	matches: many(matches),
 }));
 
 export const groupMembersRelations = relations(groupMembers, ({one}) => ({

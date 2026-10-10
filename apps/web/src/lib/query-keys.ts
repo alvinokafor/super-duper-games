@@ -10,6 +10,6 @@ export const queryKeys = {
   games: ["games"] as const,
   room: (roomId: string) => ["rooms", roomId] as const,
   match: (matchId: string) => ["matches", matchId] as const,
-  matchEvents: (matchId: string) => ["matches", matchId, "events"] as const,
+  matchMessages: (matchId: string) => ["matches", matchId, "messages"] as const,
   matchHistory: ["matches", "history"] as const,
 };

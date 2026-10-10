@@ -1,9 +1,11 @@
 import { createRoomSchema, ROOM_CHANGED_EVENT, type Room, roomChannelName } from "@bankroll/contracts";
+import { createMatch, GAME_ID, MAX_PLAYERS, MIN_PLAYERS } from "@bankroll/lagos-rules";
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { type Db, db, type Tx } from "../db/client";
-import { games, profiles, rooms, roomSeats } from "../db/generated/schema";
-import { conflict, notFound, readJson, uuidParam } from "../lib/http";
+import { games, matches, matchPlayers, matchStates, profiles, rooms, roomSeats } from "../db/generated/schema";
+import { conflict, forbidden, notFound, readJson, uuidParam } from "../lib/http";
+import { deadlineFor, secureRandomInt } from "../lib/matches";
 import { profileColumns, randomCode } from "../lib/profiles";
 import { broadcast } from "../lib/realtime";
 import type { AuthVariables } from "../middleware/auth";
@@ -20,9 +22,11 @@ async function loadRoom(executor: Db | Tx, roomId: string): Promise<Room> {
       minPlayers: games.minPlayers,
       maxPlayers: rooms.maxPlayers,
       groupId: rooms.groupId,
+      matchId: matches.id,
     })
     .from(rooms)
     .innerJoin(games, eq(games.id, rooms.gameId))
+    .leftJoin(matches, eq(matches.roomId, rooms.id))
     .where(eq(rooms.id, roomId));
   if (!room) throw notFound("Room not found");
 
@@ -42,7 +46,13 @@ async function loadRoom(executor: Db | Tx, roomId: string): Promise<Room> {
 
 async function lockRoom(tx: Tx, roomId: string) {
   const [room] = await tx
-    .select({ id: rooms.id, hostId: rooms.hostId, status: rooms.status, maxPlayers: rooms.maxPlayers })
+    .select({
+      id: rooms.id,
+      gameId: rooms.gameId,
+      hostId: rooms.hostId,
+      status: rooms.status,
+      maxPlayers: rooms.maxPlayers,
+    })
     .from(rooms)
     .where(eq(rooms.id, roomId))
     .for("update");
@@ -126,6 +136,46 @@ export const roomRoutes = new Hono<{ Variables: AuthVariables }>()
       let seat = 0;
       while (taken.has(seat)) seat++;
       await tx.insert(roomSeats).values({ roomId, userId: me, seat });
+      await broadcast(tx, roomChannelName(roomId), ROOM_CHANGED_EVENT);
+      return loadRoom(tx, roomId);
+    });
+
+    return c.json(room);
+  })
+
+  // Only the host can start, once enough players are seated. Turn order is
+  // shuffled by the rules engine, not taken from room seats.
+  .post("/rooms/:roomId/start", async (c) => {
+    const me = c.get("userId");
+    const roomId = uuidParam(c.req.param("roomId"));
+
+    const room = await db.transaction(async (tx) => {
+      const locked = await lockRoom(tx, roomId);
+      if (locked.hostId !== me) throw forbidden("Only the host can start the match");
+      if (locked.status !== "open") throw conflict("The match has already started");
+      if (locked.gameId !== GAME_ID) throw conflict("This game can't be played yet");
+
+      const seats = await tx
+        .select({ userId: roomSeats.userId })
+        .from(roomSeats)
+        .where(eq(roomSeats.roomId, roomId))
+        .orderBy(asc(roomSeats.seat));
+      if (seats.length < MIN_PLAYERS) throw conflict(`You need at least ${MIN_PLAYERS} players to start`);
+      if (seats.length > MAX_PLAYERS) throw conflict(`At most ${MAX_PLAYERS} players can play`);
+
+      const state = createMatch({ playerIds: seats.map((s) => s.userId), randomInt: secureRandomInt });
+      const [match] = await tx
+        .insert(matches)
+        .values({ roomId, gameId: locked.gameId, state, turnDeadline: deadlineFor(state) })
+        .returning({ id: matches.id });
+      await tx
+        .insert(matchPlayers)
+        .values(state.public.players.map((p) => ({ matchId: match!.id, userId: p.id, seat: p.seat })));
+      await tx.insert(matchStates).values({ matchId: match!.id, version: 0, state });
+      await tx
+        .update(rooms)
+        .set({ status: "started", startedAt: new Date().toISOString() })
+        .where(eq(rooms.id, roomId));
       await broadcast(tx, roomChannelName(roomId), ROOM_CHANGED_EVENT);
       return loadRoom(tx, roomId);
     });

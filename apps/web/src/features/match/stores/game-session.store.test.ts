@@ -17,6 +17,8 @@ const snapshot = (version: number, round = 1): LagosSnapshot => ({
     phase: "awaiting_roll",
     lastRoll: null,
     players: [],
+    owners: Array.from({ length: 28 }, () => null),
+    winnerIds: null,
   },
 });
 
@@ -58,8 +60,28 @@ describe("game session store", () => {
 
   it("does not go back to an older snapshot", () => {
     store().applyUpdate(update(6));
-    store().hydrate(snapshot(3));
+    expect(store().hydrate(snapshot(3))).toBe(false);
     expect(store().stateVersion).toBe(6);
+  });
+
+  it("says whether a snapshot moved the board ahead", () => {
+    expect(store().hydrate(snapshot(5))).toBe(false);
+    expect(store().hydrate(snapshot(7))).toBe(true);
+    store().reset();
+    expect(store().hydrate(snapshot(0))).toBe(true);
+  });
+
+  it("takes a newer board carried by a duplicate", () => {
+    const retry = update(4);
+    retry.snapshot = snapshot(9, 9);
+    expect(store().applyUpdate(retry)).toBe("duplicate");
+    expect(store().stateVersion).toBe(9);
+    expect(store().gameState?.round).toBe(9);
+  });
+
+  it("reports an empty store as the wrong match", () => {
+    store().reset();
+    expect(store().applyUpdate(update(1))).toBe("wrong_match");
   });
 
   it("clears a pending command once the server confirms it", () => {

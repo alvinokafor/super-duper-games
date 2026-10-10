@@ -40,6 +40,17 @@ export function formatCount(count: number) {
   return count > 99 ? "99+" : String(count);
 }
 
+export function formatNaira(amount: number) {
+  return `₦${amount.toLocaleString("en-NG")}`;
+}
+
+// "92k", "1.2m". Used where space is tight, such as the player strip.
+export function formatShortNaira(amount: number) {
+  if (amount >= 1_000_000) return `${Number((amount / 1_000_000).toFixed(1))}m`;
+  if (amount >= 1_000) return `${Math.floor(amount / 1_000)}k`;
+  return String(amount);
+}
+
 export function shortRoomCode(roomId: string) {
   return roomId.replaceAll("-", "").slice(0, 4).toUpperCase();
 }

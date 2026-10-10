@@ -5,7 +5,10 @@ export const userChannelName = (userId: string) => `user:${userId}` as const;
 export const groupChannelName = (groupId: string) => `group:${groupId}` as const;
 export const roomChannelName = (roomId: string) => `room:${roomId}` as const;
 
+// Sent on match:<id>. The payload is a match update (new snapshot plus events).
 export const MATCH_EVENT = "match_event";
+// Sent on match:<id>. The payload is a MatchMessage.
+export const MATCH_MESSAGE_EVENT = "match_message";
 
 // Sent on user:<id>. Tells the app which lists to refetch. group_activity
 // means a new message arrived, so only the groups list needs refetching.

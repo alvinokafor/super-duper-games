@@ -1,11 +1,13 @@
 import { ROOM_CHANGED_EVENT, type Room, roomChannelName } from "@bankroll/contracts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { BackIcon } from "@/components/icons";
 import { Avatar, backButtonClass, Button, buttonClass, ErrorText, errorMessage, Muted, Screen } from "@/components/ui";
 import { ArtTile, lagosArt } from "@/features/games/art";
-import { roomQuery, useJoinRoom, useLeaveRoom } from "@/features/rooms/api";
+import { seatToken, tokenShadow } from "@/features/match/tokens";
+import { roomQuery, useJoinRoom, useLeaveRoom, useStartRoom } from "@/features/rooms/api";
+import { matchToEnter, matchToOpen } from "@/features/rooms/room-match";
 import { shortRoomCode } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { useChannel } from "@/lib/realtime";
@@ -15,17 +17,15 @@ export const Route = createFileRoute("/_authenticated/rooms/$roomId")({
   component: RoomPage,
 });
 
-// Player token colours, in seat order.
-const seatTokens = ["bg-lagoon", "bg-navy", "bg-rose", "bg-alert", "bg-violet", "bg-teal"] as const;
-const tokenShadow = "shadow-[inset_0_2px_1px_#FFFFFF8C,inset_0_-2px_2px_#00000047,0_1px_1px_#00000047]";
-
 function RoomPage() {
   const { roomId } = Route.useParams();
   const { userId } = Route.useRouteContext();
   const router = useRouter();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const join = useJoinRoom(roomId);
   const leave = useLeaveRoom(roomId);
+  const start = useStartRoom(roomId);
   const [copied, setCopied] = useState(false);
 
   // Only seated players and members of the room's group get live updates;
@@ -41,6 +41,13 @@ function RoomPage() {
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: queryKeys.room(roomId) });
   useChannel(canListenTo(r) ? roomChannelName(roomId) : null, { [ROOM_CHANGED_EVENT]: refresh }, refresh);
+
+  // Seated players go straight to the board when the host starts.
+  const matchId = matchToEnter(r, userId);
+  const openMatchId = matchToOpen(r, userId);
+  useEffect(() => {
+    if (matchId) void navigate({ to: "/matches/$matchId", params: { matchId }, replace: true });
+  }, [matchId, navigate]);
 
   async function share() {
     const result = await shareOrCopy({ title: `Play ${r?.gameName ?? "Lagos Property"} with me`, url: window.location.href });
@@ -85,10 +92,10 @@ function RoomPage() {
   const full = r.seats.length >= r.maxPlayers;
 
   let status = "Waiting for the host to start.";
-  if (r.status === "closed") status = "This room has closed.";
+  if (r.status === "closed") status = r.matchId ? "The match has ended." : "This room has closed.";
   else if (r.status === "started") status = "The match has started.";
   else if (needed > 0) status = `Waiting for ${needed} more player${needed === 1 ? "" : "s"}. At least ${r.minPlayers} needed.`;
-  else if (isHost) status = "Everyone's here. Starting matches comes with the game build.";
+  else if (isHost) status = "Everyone's here. Start when you're ready.";
 
   return (
     <Screen>
@@ -140,7 +147,7 @@ function RoomPage() {
                 <p className="truncate text-body leading-[18px] font-bold text-ink">{seat.player.displayName}</p>
                 <p className="text-caption leading-caption font-semibold text-ink-soft">{role}</p>
               </div>
-              <span className={`size-[14px] shrink-0 rounded-pill ${tokenShadow} ${seatTokens[i % seatTokens.length]}`} />
+              <span className={`size-[14px] shrink-0 rounded-pill ${tokenShadow} ${seatToken(i)}`} />
             </li>
           );
         })}
@@ -148,16 +155,28 @@ function RoomPage() {
 
       <div className="mt-auto flex flex-col items-center gap-[10px] px-4 pt-3 pb-[max(28px,env(safe-area-inset-bottom))]">
         <p className="text-center text-label leading-caption font-medium text-ink-soft">{status}</p>
-        <ErrorText>{errorMessage(join.error ?? leave.error)}</ErrorText>
+        <ErrorText>{errorMessage(join.error ?? leave.error ?? start.error)}</ErrorText>
         {r.status === "open" && !seated && (
           <Button variant="danfo" className="w-full" onClick={() => join.mutate()} disabled={join.isPending || full}>
             {full ? "Room is full" : join.isPending ? "Joining…" : "Take a seat"}
           </Button>
         )}
-        {r.status === "open" && seated && (
-          <div className={`${buttonClass("quiet", "lg")} w-full tracking-snug`}>
-            {needed > 0 ? `Waiting for ${needed} more` : isHost ? "Start match soon" : "Waiting for host"}
-          </div>
+        {r.status === "open" && seated && isHost && needed === 0 ? (
+          <Button variant="danfo" className="w-full" onClick={() => start.mutate()} disabled={start.isPending}>
+            {start.isPending ? "Starting…" : "Start match"}
+          </Button>
+        ) : (
+          r.status === "open" &&
+          seated && (
+            <div className={`${buttonClass("quiet", "lg")} w-full tracking-snug`}>
+              {needed > 0 ? `Waiting for ${needed} more` : "Waiting for host"}
+            </div>
+          )
+        )}
+        {openMatchId && (
+          <Link to="/matches/$matchId" params={{ matchId: openMatchId }} className={`${buttonClass("danfo", "lg")} w-full`}>
+            {r.status === "closed" ? "See results" : "Open match"}
+          </Link>
         )}
         {r.status === "open" && seated && (
           <button

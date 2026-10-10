@@ -34,3 +34,11 @@ function useSeatMutation(roomId: string, action: "join" | "leave") {
 
 export const useJoinRoom = (roomId: string) => useSeatMutation(roomId, "join");
 export const useLeaveRoom = (roomId: string) => useSeatMutation(roomId, "leave");
+
+export function useStartRoom(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api(`/v1/rooms/${roomId}/start`, { method: "POST", schema: roomSchema }),
+    onSuccess: (room) => queryClient.setQueryData(queryKeys.room(roomId), room),
+  });
+}

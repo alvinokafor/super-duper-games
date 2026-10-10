@@ -2,6 +2,9 @@ export const lagosArt = {
   featured: "/images/featured-house.jpg",
   villa: "/images/villa.jpg",
   terrace: "/images/terrace.jpg",
+  boardCentre: "/images/board-centre.jpg",
+  property: "/images/property.jpg",
+  payday: "/images/payday.jpg",
 } as const;
 
 export function ArtTile({ src, className = "" }: { src: string; className?: string }) {
