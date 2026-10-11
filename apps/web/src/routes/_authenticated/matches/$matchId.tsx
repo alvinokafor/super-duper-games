@@ -1,5 +1,5 @@
 import type { PublicProfile } from "@bankroll/contracts";
-import { BOARD, isBuyable, type LagosCommand, PHASE_SECONDS } from "@bankroll/lagos-rules";
+import { BOARD, isBuyable, type LagosCommand, phaseSeconds } from "@bankroll/lagos-rules";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { BuySheet, ChatSheet, PaydaySheet, ResultsSheet } from "@/features/match
 import { useGameAnimationStore } from "@/features/match/stores/game-animation.store";
 import { useGameSessionStore } from "@/features/match/stores/game-session.store";
 import { resetMatchStores } from "@/features/match/stores/reset-match-stores";
+import { DICE_MS, planFront, shownPositions, startWalk, type Walk, walkPath } from "@/features/match/token-walk";
 import { useMatchSync } from "@/features/match/use-match-sync";
 import { formatCount } from "@/lib/format";
 
@@ -20,8 +21,17 @@ export const Route = createFileRoute("/_authenticated/matches/$matchId")({
   component: MatchPage,
 });
 
-const DICE_MS = 1500;
 const TOAST_MS = 4000;
+
+function usePageHidden() {
+  const [hidden, setHidden] = useState(() => document.hidden);
+  useEffect(() => {
+    const update = () => setHidden(document.hidden);
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  return hidden;
+}
 
 function MatchPage() {
   const { matchId } = Route.useParams();
@@ -64,21 +74,38 @@ function MatchPage() {
     return () => clearTimeout(timer);
   }, [commandFailed, resetCommand]);
 
-  // Plays server events one at a time. Only the dice wait on screen; my own
-  // payday opens a card without holding up later events. Everything else is
-  // already reflected in the board.
+  // Plays server events one at a time. The die waits on screen, then the
+  // piece walks tile by tile; my own payday opens a card without holding up
+  // later events. Everything else is already reflected in the board.
+  const hidden = usePageHidden();
   const front = queue[0];
-  const showDice =
-    front?.event.type === "dice_rolled" && !queue.slice(1).some((a) => a.event.type === "dice_rolled");
+  const play = planFront(queue, hidden);
+  const showDice = play === "dice";
+  const [walk, setWalk] = useState<Walk | null>(null);
   useEffect(() => {
     if (!front) return;
     if (front.event.type === "payday" && front.event.playerId === userId) {
       setPayday({ income: front.event.income, amount: front.event.amount });
     }
-    if (!showDice) return complete(front.key);
+    if (play === "walk" && front.event.type === "token_moved") {
+      const { playerId, from, to } = front.event;
+      setWalk({ key: front.key, playerId, at: from });
+      return startWalk(
+        walkPath(from, to),
+        (at) => setWalk({ key: front.key, playerId, at }),
+        () => {
+          setWalk(null);
+          complete(front.key);
+        },
+      );
+    }
+    if (play !== "dice") return complete(front.key);
     const timer = setTimeout(() => complete(front.key), DICE_MS);
     return () => clearTimeout(timer);
-  }, [front, showDice, userId, complete]);
+  }, [front, play, userId, complete]);
+  const moving = queue.some((a) => a.event.type === "dice_rolled" || a.event.type === "token_moved");
+  const players = state?.players;
+  const positions = useMemo(() => shownPositions(players ?? [], queue, walk), [players, queue, walk]);
 
   const profiles = useMemo(
     () => new Map<string, PublicProfile>((view.data?.players ?? []).map((p) => [p.id, p])),
@@ -108,7 +135,7 @@ function MatchPage() {
         )}
       </div>
       <div className="flex w-20 shrink-0 justify-end">
-        {state && state.phase !== "finished" && <TurnTimer deadline={deadline} totalSeconds={PHASE_SECONDS[state.phase]} />}
+        {state && state.phase !== "finished" && <TurnTimer deadline={deadline} totalSeconds={phaseSeconds(state.phase)} />}
       </div>
     </div>
   );
@@ -133,11 +160,11 @@ function MatchPage() {
   const busy = sending || command.isPending;
   const landed = me ? BOARD[me.position]! : null;
   const buying =
-    myTurn && state.phase === "awaiting_purchase" && !showDice && !payday && landed && isBuyable(landed) ? landed : null;
+    myTurn && state.phase === "awaiting_purchase" && !moving && !payday && landed && isBuyable(landed) ? landed : null;
 
   let action: { label: string; onClick?: () => void; tone: "danfo" | "lagoon" | "quiet" };
   if (state.phase === "finished") action = { label: "SEE RESULTS", tone: "lagoon", onClick: () => setResultsOpen(true) };
-  else if (busy || showDice) action = { label: "MOVING", tone: "quiet" };
+  else if (busy || moving) action = { label: "MOVING", tone: "quiet" };
   else if (!playing) action = { label: "YOU'RE OUT · WATCHING", tone: "quiet" };
   else if (myTurn && state.phase === "awaiting_roll") action = { label: "ROLL", tone: "danfo", onClick: () => run({ type: "roll_dice" }) };
   else if (myTurn && state.phase === "awaiting_action")
@@ -161,7 +188,7 @@ function MatchPage() {
     <main className="mx-auto flex min-h-full w-full max-w-[480px] flex-col bg-paper pt-[calc(env(safe-area-inset-top)+12px)]">
       {header}
 
-      <Board state={state} myId={userId} names={names}>
+      <Board state={state} myId={userId} names={names} positions={positions}>
         {diceEvent && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
             <Die value={diceEvent.value} />
@@ -232,7 +259,7 @@ function MatchPage() {
           deadline={deadline}
           busy={busy}
           error={command.error}
-          onBuy={() => run({ type: "buy_property" })}
+          onBuy={() => me && run({ type: "buy_property", space: me.position })}
           onPass={() => run({ type: "pass_property" })}
         />
       )}

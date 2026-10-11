@@ -98,6 +98,7 @@ export function applyCommand(
 
     case "buy_property": {
       if (next.public.phase !== "awaiting_purchase") return { ok: false, error: "illegal_move" };
+      if (command.space !== player.position) return { ok: false, error: "illegal_move" };
       const space = BOARD[player.position]!;
       if (!isBuyable(space)) return { ok: false, error: "illegal_move" };
       if (player.cash < space.price) return { ok: false, error: "not_enough_cash" };

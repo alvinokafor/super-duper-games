@@ -12,7 +12,7 @@ The server owns every game outcome. The web app shows a synced copy of the match
 | Routing | TanStack Router, file-based, typed params and search |
 | Server data | TanStack Query |
 | Local game and UI state | Zustand |
-| Board | Plain page elements (CSS grid) |
+| Board | Plain page elements (CSS grid) for tiles; PixiJS for the player pieces |
 | API | Hono on Node, always-on, hosted on Fly.io |
 | Database | Supabase Postgres, queried from Hono with Drizzle |
 | Login | Supabase Auth |
@@ -184,8 +184,12 @@ Live channels (phones must join with `private: true`):
 
 - The board is plain page elements on an 8×8 grid, drawn to match the Paper design. This keeps text sharp and tiles easy to tap and read with a screen reader.
 - Tiles read straight from the session store. The board never holds its own copy of money or ownership.
-- Animations (the die, the payday card) replay server events from the animation queue. They never change game data.
-- A graphics engine can be added later for effects such as raids if plain elements are not enough.
+- An owned tile turns white and gets a bar in the owner's colour on the edge facing the middle of the board.
+- The player pieces are drawn by PixiJS on a see-through layer over the tiles. After a roll, the die shows, then the piece hops one tile at a time (250 ms per tile), then the buy card opens.
+- Animations (the die, the walk, the payday card) replay server events from the animation queue. They never change game data. If a phone falls behind, or the page is in the background, it skips straight to the latest state.
+- The server adds 4 seconds to the landing and action timers so the die and walk don't eat into the player's time.
+- A buy names the tile the player saw. The server refuses it if the player isn't on that tile, so a phone with an out-of-date board can't buy the wrong property.
+- If the browser can't start PixiJS, the pieces are drawn as plain dots instead.
 
 ## Match chat
 

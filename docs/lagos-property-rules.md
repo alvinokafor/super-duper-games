@@ -43,38 +43,38 @@ Design principles: **simple controls, difficult decisions; money must have oppor
 
 ## 3. Canonical board and direction
 
-**This exact sequence supersedes every earlier draft.** The board must match the final accepted Paper design. Fixed corners: **GO bottom-left (#1); 3% Property Tax bottom-right (#8); EFCC top-right (#15); Free Parking/Park top-left (#22)**. Move clockwise: bottom edge left-to-right, right edge bottom-to-top, top edge right-to-left, left edge top-to-bottom. Corner positions must not be duplicated.
+**This exact sequence supersedes every earlier draft.** The board must match the final accepted Paper design. Fixed corners: **GO bottom-left (#1); Free Parking/Park top-left (#8); EFCC top-right (#15); 3% Property Tax bottom-right (#22)**. Move clockwise: left edge bottom-to-top, top edge left-to-right, right edge top-to-bottom, bottom edge right-to-left. Players start on the cheapest land and reach the Island last. Corner positions must not be duplicated.
 
 | # | Space | Type / group | Purchase price |
 |---:|---|---|---:|
 | 1 | GO | Payday | — |
-| 2 | Banana Island | Island Elite / gold | ₦42,000 |
-| 3 | Eko Atlantic City | Island Elite / gold | ₦44,000 |
-| 4 | Victoria Island | Island Elite / gold | ₦36,000 |
-| 5 | Chance | Draw Chance | — |
-| 6 | Airport | Utility | ₦16,000 |
-| 7 | Lekki Phase 1 | Lekki / teal | ₦30,000 |
-| 8 | 3% Property Tax | Tax / corner | — |
-| 9 | Chevron Drive | Lekki / teal | ₦26,000 |
-| 10 | Osapa London | Lekki / teal | ₦22,000 |
-| 11 | Refinery | Utility | ₦18,000 |
-| 12 | Maryland | Mainland Premium / purple | ₦23,000 |
-| 13 | Magodo | Mainland Premium / purple | ₦28,000 |
-| 14 | Ikeja GRA | Mainland Premium / purple | ₦35,000 |
+| 2 | Makoko | Mainland Low-Cost / brown | ₦6,000 |
+| 3 | Ajegunle | Mainland Low-Cost / brown | ₦8,000 |
+| 4 | Mushin | Mainland Low-Cost / brown | ₦10,000 |
+| 5 | 5% Income Tax | Tax | — |
+| 6 | Community Chest | Draw Community Chest | — |
+| 7 | Ketu | Mainland Residential / orange | ₦12,000 |
+| 8 | Free Parking / Park | Special / corner | — |
+| 9 | Festac Town | Mainland Residential / orange | ₦17,000 |
+| 10 | Gbagada | Mainland Residential / orange | ₦20,000 |
+| 11 | Railway | Utility | ₦14,000 |
+| 12 | Ajao Estate | Mainland Central / coral | ₦14,000 |
+| 13 | Anthony | Mainland Central / coral | ₦17,000 |
+| 14 | Yaba | Mainland Central / coral | ₦20,000 |
 | 15 | EFCC Holding | Special / corner | — |
-| 16 | Yaba | Mainland Central / coral | ₦20,000 |
-| 17 | Anthony | Mainland Central / coral | ₦17,000 |
-| 18 | Ajao Estate | Mainland Central / coral | ₦14,000 |
-| 19 | Railway | Utility | ₦14,000 |
-| 20 | Gbagada | Mainland Residential / orange | ₦20,000 |
-| 21 | Festac Town | Mainland Residential / orange | ₦17,000 |
-| 22 | Free Parking / Park | Special / corner | — |
-| 23 | Ketu | Mainland Residential / orange | ₦12,000 |
-| 24 | Community Chest | Draw Community Chest | — |
-| 25 | 5% Income Tax | Tax | — |
-| 26 | Mushin | Mainland Low-Cost / brown | ₦10,000 |
-| 27 | Ajegunle | Mainland Low-Cost / brown | ₦8,000 |
-| 28 | Makoko | Mainland Low-Cost / brown | ₦6,000 |
+| 16 | Ikeja GRA | Mainland Premium / purple | ₦35,000 |
+| 17 | Magodo | Mainland Premium / purple | ₦28,000 |
+| 18 | Maryland | Mainland Premium / purple | ₦23,000 |
+| 19 | Refinery | Utility | ₦18,000 |
+| 20 | Osapa London | Lekki / teal | ₦22,000 |
+| 21 | Chevron Drive | Lekki / teal | ₦26,000 |
+| 22 | 3% Property Tax | Tax / corner | — |
+| 23 | Lekki Phase 1 | Lekki / teal | ₦30,000 |
+| 24 | Airport | Utility | ₦16,000 |
+| 25 | Chance | Draw Chance | — |
+| 26 | Victoria Island | Island Elite / gold | ₦36,000 |
+| 27 | Eko Atlantic City | Island Elite / gold | ₦44,000 |
+| 28 | Banana Island | Island Elite / gold | ₦42,000 |
 
 **Corridors (always three):** Island Elite = Banana Island, Eko Atlantic City, Victoria Island. Lekki = Lekki Phase 1, Chevron Drive, Osapa London. Mainland Premium = Maryland, Magodo, Ikeja GRA. Mainland Central = Yaba, Anthony, Ajao Estate. Mainland Residential = Gbagada, Festac Town, Ketu. Mainland Low-Cost = Mushin, Ajegunle, Makoko.
 
@@ -340,21 +340,21 @@ These are independent landing-space effects.
 
 Player chooses to **pay ₦5,000 immediately** or **miss one future movement turn**. Missed turn counts toward table-round completion. A held player may still receive money and manage outstanding obligations, subject to finalized pause policy. This is **LOCKED** as a choice, with exact timing of skipped turn **OPEN**. Do not treat landing here as an automatic global raid.
 
-### 15.2 Free Parking / Park (#22)
+### 15.2 Free Parking / Park (#8)
 
 Pure safe landing. **No cash reward, no fine, no tax jackpot**.
 
-### 15.3 Income Tax (#25)
+### 15.3 Income Tax (#5)
 
 Pay **5% of current cash**, minimum **₦1,000**, maximum **₦10,000**. Do not charge more than player can pay without invoking the normal payment/insolvency process. **OPEN:** tax rounding (recommend nearest naira) and whether minimum applies to zero cash (earlier agreed yes unless insolvency).
 
-### 15.4 Property Tax (#8)
+### 15.4 Property Tax (#22)
 
 Pay **3%** of combined assessed value of player's property holdings, capped at **₦12,000**. For shared assets, assess the player's share only. Earlier baseline assessment: land price + **70% of construction cost**; utilities inclusion **OPEN** (recommend yes in asset assessment unless intentionally excluded). No minimum specified. Tax calculation is authoritative and itemizable.
 
 ## 16. Chance deck — 16 cards (approved conceptual deck; exact effects baseline)
 
-One Chance tile (#5). Deck comprises 16 individual equally weighted cards on a fresh shuffle; draw without replacement until reshuffle. A card may be temporarily held if the effect explicitly creates a holdable bonus; define handling so unique cards aren't simultaneously drawn more than allowed. Avoid chained card draws and contradictory transport rules.
+One Chance tile (#25). Deck comprises 16 individual equally weighted cards on a fresh shuffle; draw without replacement until reshuffle. A card may be temporarily held if the effect explicitly creates a holdable bonus; define handling so unique cards aren't simultaneously drawn more than allowed. Avoid chained card draws and contradictory transport rules.
 
 | ID | Name | Effect |
 |---|---|---|
@@ -379,7 +379,7 @@ One Chance tile (#5). Deck comprises 16 individual equally weighted cards on a f
 
 ## 17. Community Chest deck — 16 cards (approved conceptual deck; exact effects baseline)
 
-One Community Chest tile (#24). Same shuffled/dealt-without-replacement policy.
+One Community Chest tile (#6). Same shuffled/dealt-without-replacement policy.
 
 | ID | Name | Effect |
 |---|---|---|
@@ -553,8 +553,9 @@ These decisions override the sections above where they conflict.
 - No auctions. An unbought property stays unowned (D14 closed; §7 auction flow removed).
 - Round cap scales down as player count goes up (D01). Exact numbers set from simulations.
 - Turn order is a server shuffle at match start.
-- Turn timing stays as in §5: roll, up to 30 s landing, up to 30 s actions.
+- Turn timing stays as in §5: roll, up to 30 s landing, up to 30 s actions. After a roll, the landing and action timers get 4 s more to cover the die and the walk on screen.
 - EFCC Holding "miss a turn" skips the player's very next turn.
+- Players walk from GO up the left edge, starting on Makoko, and reach Banana Island last. Tiles stay where they are on screen; only the numbering in §3 changed.
 - No cash ceiling. The ₦1,000,000 cap is removed (D02 closed).
 
 **Rent and building**

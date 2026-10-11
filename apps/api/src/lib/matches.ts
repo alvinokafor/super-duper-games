@@ -12,7 +12,7 @@ import {
   lagosEventSchema,
   lagosPublicStateSchema,
   netWorth,
-  PHASE_SECONDS,
+  phaseSeconds,
   type RandomInt,
   toPublicView,
 } from "@bankroll/lagos-rules";
@@ -81,7 +81,7 @@ export const secureRandomInt: RandomInt = (max) => randomInt(max);
 export function deadlineFor(state: LagosState): SQL | null {
   const phase = state.public.phase;
   if (phase === "finished") return null;
-  return sql`now() + make_interval(secs => ${PHASE_SECONDS[phase]})`;
+  return sql`now() + make_interval(secs => ${phaseSeconds(phase)})`;
 }
 
 /**

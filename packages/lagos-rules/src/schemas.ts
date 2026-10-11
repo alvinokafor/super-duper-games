@@ -45,7 +45,9 @@ export interface LagosState {
 
 export const lagosCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("roll_dice") }),
-  z.object({ type: z.literal("buy_property") }),
+  // The space the player sees on their card, so a phone running an older
+  // board can never buy a different property from the one it showed.
+  z.object({ type: z.literal("buy_property"), space }),
   z.object({ type: z.literal("pass_property") }),
   z.object({ type: z.literal("end_turn") }),
 ]);

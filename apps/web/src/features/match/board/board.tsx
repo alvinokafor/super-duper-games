@@ -1,53 +1,57 @@
 import { BOARD, CORRIDORS, type LagosPublicState, type Space } from "@bankroll/lagos-rules";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { lagosArt } from "@/features/games/art";
-import { seatToken, tokenShadow } from "../tokens";
-import { corridorLook, placement, type Side, tileLabel } from "./board-layout";
-
-interface TileToken {
-  seat: number;
-  isMe: boolean;
-}
+import { seatToken } from "../tokens";
+import { corridorLook, gridTracks, placement, type Side, tileLabel } from "./board-layout";
+import { TokenLayer, type TokenSpot } from "./token-layer";
 
 /**
  * The 28-space board from the Paper design. Bank-owned land is a solid
- * corridor colour; owned land turns white with a colour strip and the
- * owner's dot. Tokens sit above the label.
+ * corridor colour; owned land turns white, keeps a thin corridor strip on
+ * the outside edge, and gets a bar in the owner's colour on the inside edge.
+ * The pieces are drawn on a layer above the tiles, at the tiles in
+ * `positions`, so they can walk rather than jump.
  */
 export function Board({
   state,
   myId,
   names,
+  positions,
   children,
 }: {
   state: LagosPublicState;
   myId: string;
   names: Map<string, string>;
+  positions: Map<string, number>;
   children?: ReactNode;
 }) {
   const seats = new Map(state.players.map((p) => [p.id, p.seat]));
-  const current = state.players.find((p) => p.id === state.currentPlayerId);
+  const current = state.currentPlayerId ? positions.get(state.currentPlayerId) : undefined;
+  const tokens = useMemo<TokenSpot[]>(
+    () =>
+      state.players
+        .filter((p) => p.status === "playing")
+        .map((p) => ({ id: p.id, seat: p.seat, isMe: p.id === myId, position: positions.get(p.id) ?? p.position })),
+    [state.players, myId, positions],
+  );
 
   return (
-    <div
-      className="grid aspect-square w-full bg-paper"
-      style={{ gridTemplateColumns: "48fr repeat(6, 49fr) 48fr", gridTemplateRows: "48fr repeat(6, 49fr) 48fr" }}
-    >
+    <div className="relative grid aspect-square w-full bg-paper" style={{ gridTemplateColumns: gridTracks, gridTemplateRows: gridTracks }}>
       {BOARD.map((space, index) => {
         const ownerId = state.owners[index] ?? null;
-        const tokens = state.players
-          .filter((p) => p.position === index && p.status === "playing")
-          .map((p) => ({ seat: p.seat, isMe: p.id === myId }));
         const ownerName = ownerId ? names.get(ownerId) : undefined;
+        const here = tokens.filter((t) => t.position === index).map((t) => names.get(t.id) ?? "A player");
+        const label = [space.name, ownerName && `owned by ${ownerName}`, here.length > 0 && `${here.join(", ")} here`]
+          .filter(Boolean)
+          .join(", ");
         return (
           <Tile
             key={space.name}
             index={index}
             space={space}
             ownerSeat={ownerId ? (seats.get(ownerId) ?? null) : null}
-            tokens={tokens}
-            highlight={state.phase !== "finished" && current?.position === index}
-            label={ownerName ? `${space.name}, owned by ${ownerName}` : space.name}
+            highlight={state.phase !== "finished" && current === index}
+            label={label}
           />
         );
       })}
@@ -59,6 +63,7 @@ export function Board({
         />
         {children}
       </div>
+      <TokenLayer tokens={tokens} />
     </div>
   );
 }
@@ -70,6 +75,14 @@ const edgeStripClass: Record<Exclude<Side, "corner">, string> = {
   right: "order-last h-full w-[6px]",
 };
 
+// The owner bar sits on the edge facing the middle of the board.
+const ownerBarClass: Record<Exclude<Side, "corner">, string> = {
+  bottom: "order-first h-[5px] w-full",
+  top: "order-last h-[5px] w-full",
+  left: "order-last h-full w-[5px]",
+  right: "order-first h-full w-[5px]",
+};
+
 const utilityStripe = {
   across: "repeating-linear-gradient(90deg, #5C6B64 0 4px, #DCE2DA 4px 6px)",
   down: "repeating-linear-gradient(#5C6B64 0 4px, #DCE2DA 4px 6px)",
@@ -79,14 +92,12 @@ function Tile({
   index,
   space,
   ownerSeat,
-  tokens,
   highlight,
   label,
 }: {
   index: number;
   space: Space;
   ownerSeat: number | null;
-  tokens: TileToken[];
   highlight: boolean;
   label: string;
 }) {
@@ -114,13 +125,10 @@ function Tile({
         style={style}
       >
         {strip}
+        {owned && side !== "corner" && <div className={`shrink-0 ${ownerBarClass[side]} ${seatToken(ownerSeat)}`} />}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-[2px]">
-          {space.kind === "utility" && tokens.length === 0 && <UtilityIcon name={space.name} />}
-          <Dots ownerSeat={look ? ownerSeat : null} tokens={tokens} />
-          <span className={`flex items-center gap-[2px] font-black ${size} ${solid ? "text-white" : "text-ink"}`}>
-            {!look && owned && <span className={`size-[6px] shrink-0 rounded-pill ${seatToken(ownerSeat)}`} />}
-            {short}
-          </span>
+          {space.kind === "utility" && <UtilityIcon name={space.name} />}
+          <span className={`font-black ${size} ${solid ? "text-white" : "text-ink"}`}>{short}</span>
         </div>
         {ring}
       </div>
@@ -171,31 +179,8 @@ function Tile({
       className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center gap-[2px] overflow-hidden ${box}`}
       style={style}
     >
-      <Dots ownerSeat={null} tokens={tokens} />
       {body}
       {ring}
-    </div>
-  );
-}
-
-function Dots({ ownerSeat, tokens }: { ownerSeat: number | null; tokens: TileToken[] }) {
-  if (ownerSeat === null && tokens.length === 0) return null;
-  const overlap = tokens.length > 3 ? "-ml-[6px]" : "-ml-[3px]";
-  return (
-    <div className="flex items-center gap-[3px]">
-      {ownerSeat !== null && (
-        <span className={`size-[10px] shrink-0 rounded-pill ${tokenShadow} ${seatToken(ownerSeat)}`} />
-      )}
-      {tokens.length > 0 && (
-        <span className="flex items-center">
-          {tokens.map((t, i) => (
-            <span
-              key={t.seat}
-              className={`size-3 shrink-0 rounded-pill ${tokenShadow} ${seatToken(t.seat)} ${t.isMe ? "border-[1.5px] border-danfo" : "border border-white"} ${i > 0 ? overlap : ""}`}
-            />
-          ))}
-        </span>
-      )}
     </div>
   );
 }

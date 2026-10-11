@@ -24,3 +24,14 @@ export const PHASE_SECONDS = {
   awaiting_purchase: 30,
   awaiting_action: 30,
 } as const;
+
+/**
+ * Extra time after a roll while phones show the die (1.5 s) and walk the
+ * piece (up to 6 tiles at 250 ms), so the player still gets the full phase.
+ */
+export const MOVE_SHOW_SECONDS = 4;
+
+/** The full wait for a phase, including the time spent showing the move. */
+export function phaseSeconds(phase: keyof typeof PHASE_SECONDS): number {
+  return PHASE_SECONDS[phase] + (phase === "awaiting_roll" ? 0 : MOVE_SHOW_SECONDS);
+}

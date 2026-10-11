@@ -159,7 +159,7 @@ for (let turn = 0; turn < 40 && bought === 0; turn++) {
   if (snapshot.state.phase === "awaiting_roll") snapshot = (await send(user, { type: "roll_dice" })).body.snapshot;
   if (snapshot.state.phase === "awaiting_purchase") {
     const before = snapshot.state.players.find((p) => p.id === user.me.id);
-    const res = await send(user, { type: "buy_property" });
+    const res = await send(user, { type: "buy_property", space: before.position });
     if (res.status === 200) {
       const after = res.body.snapshot.state.players.find((p) => p.id === user.me.id);
       if (bought === 0) check(after.cash < before.cash && res.body.snapshot.state.owners[after.position] === user.me.id, "buying takes cash and records the owner");
@@ -208,9 +208,11 @@ check(
 
 // Turn timer
 const lastMove = moves[0].at(-1);
+// A roll's landing and action phases get 4 extra seconds for the die and walk.
+const expectedWait = lastMove.snapshot.state.phase === "awaiting_roll" ? 30_000 : 34_000;
 check(
-  new Date(lastMove.snapshot.turnDeadline) - new Date(lastMove.applied.createdAt) === 30_000,
-  "the deadline is 30 seconds after the move by the database clock",
+  new Date(lastMove.snapshot.turnDeadline) - new Date(lastMove.applied.createdAt) === expectedWait,
+  `the deadline is ${expectedWait / 1000} seconds after the move by the database clock`,
 );
 const idle = snapshot.state.currentPlayerId;
 const deadline = new Date(snapshot.turnDeadline).getTime();

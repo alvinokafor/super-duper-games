@@ -58,9 +58,14 @@ describe("board", () => {
   it("has 28 spaces with the four fixed corners", () => {
     expect(BOARD).toHaveLength(BOARD_SIZE);
     expect(BOARD[0]!.kind).toBe("go");
-    expect(BOARD[7]!.name).toBe("3% Property Tax");
+    expect(BOARD[7]!.kind).toBe("park");
     expect(BOARD[14]!.kind).toBe("efcc");
-    expect(BOARD[21]!.kind).toBe("park");
+    expect(BOARD[21]!.name).toBe("3% Property Tax");
+  });
+
+  it("walks from GO through the cheapest land first and reaches the Island last", () => {
+    expect(BOARD.slice(1, 4).map((s) => s.name)).toEqual(["Makoko", "Ajegunle", "Mushin"]);
+    expect(BOARD.slice(-3).map((s) => s.name)).toEqual(["Victoria Island", "Eko Atlantic City", "Banana Island"]);
   });
 
   it("has six corridors of three properties and three utilities", () => {
@@ -68,7 +73,7 @@ describe("board", () => {
       expect(corridorSpaces(corridor)).toHaveLength(3);
     }
     expect(BOARD.filter((s) => s.kind === "property")).toHaveLength(18);
-    expect(BOARD.filter((s) => s.kind === "utility").map((s) => s.name)).toEqual(["Airport", "Refinery", "Railway"]);
+    expect(BOARD.filter((s) => s.kind === "utility").map((s) => s.name)).toEqual(["Railway", "Refinery", "Airport"]);
   });
 });
 
@@ -125,7 +130,7 @@ describe("applyCommand", () => {
     expect(state).toEqual(before);
   });
 
-  it("rolls one die and moves clockwise", () => {
+  it("rolls one die and moves forward along the board", () => {
     const state = setup();
     const id = current(state);
     const result = apply(state, id, { type: "roll_dice" }, rolls(4));
@@ -162,28 +167,36 @@ describe("applyCommand", () => {
   });
 
   it("buys the property for its price", () => {
-    const start = landOn(setup(), 1);
+    const start = landOn(setup(), 27);
     const id = current(start);
-    const state = expectOk(applyCommand(start, id, { type: "buy_property" }));
+    const state = expectOk(applyCommand(start, id, { type: "buy_property", space: 27 }));
     expect(player(state, id).cash).toBe(STARTING_CASH - 42_000);
-    expect(state.public.owners[1]).toBe(id);
+    expect(state.public.owners[27]).toBe(id);
     expect(state.public.phase).toBe("awaiting_action");
     expect(netWorth(state.public, id)).toBe(STARTING_CASH);
+  });
+
+  it("refuses to buy a different space from the one the player is on", () => {
+    const start = landOn(setup(), 27);
+    expect(applyCommand(start, current(start), { type: "buy_property", space: 1 })).toEqual({
+      ok: false,
+      error: "illegal_move",
+    });
   });
 
   it("refuses to buy without enough cash", () => {
     const start = landOn(setup(), 2);
     player(start, current(start)).cash = 1_000;
-    expect(applyCommand(start, current(start), { type: "buy_property" })).toEqual({
+    expect(applyCommand(start, current(start), { type: "buy_property", space: 2 })).toEqual({
       ok: false,
       error: "not_enough_cash",
     });
   });
 
   it("leaves a passed property unowned", () => {
-    const start = landOn(setup(), 5);
+    const start = landOn(setup(), 6);
     const state = expectOk(applyCommand(start, current(start), { type: "pass_property" }));
-    expect(state.public.owners[5]).toBeNull();
+    expect(state.public.owners[6]).toBeNull();
     expect(state.public.phase).toBe("awaiting_action");
   });
 

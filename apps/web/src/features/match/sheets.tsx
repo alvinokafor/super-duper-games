@@ -6,7 +6,7 @@ import {
   corridorSpaces,
   type LagosPublicState,
   netWorth,
-  PHASE_SECONDS,
+  phaseSeconds,
 } from "@bankroll/lagos-rules";
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
@@ -121,7 +121,7 @@ export function BuySheet({
           <p className="text-[18px] leading-body font-black tracking-[-0.02em] text-white">{space.name}</p>
           <p className="text-caption leading-caption font-semibold text-[#FFFFFFE6]">{subtitle}</p>
         </div>
-        <TurnTimer deadline={deadline} totalSeconds={PHASE_SECONDS.awaiting_purchase} track={track} />
+        <TurnTimer deadline={deadline} totalSeconds={phaseSeconds("awaiting_purchase")} track={track} />
       </div>
       <div className="flex flex-col gap-[14px] p-4">
         <div className="flex items-center gap-3">
