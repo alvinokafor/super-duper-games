@@ -13,6 +13,7 @@ import { BuildSheet, BuySheet, ChatSheet, PaydaySheet, ResultsSheet } from "@/fe
 import { useGameAnimationStore } from "@/features/match/stores/game-animation.store";
 import { useGameSessionStore } from "@/features/match/stores/game-session.store";
 import { resetMatchStores } from "@/features/match/stores/reset-match-stores";
+import { shownCash, useCashFlashes } from "@/features/match/cash-flash";
 import { noticeText } from "@/features/match/notices";
 import {
   DICE_MS,
@@ -119,6 +120,8 @@ function MatchPage() {
   const moving = queue.some((a) => a.event.type === "dice_rolled" || a.event.type === "token_moved");
   const players = state?.players;
   const positions = useMemo(() => shownPositions(players ?? [], queue, walk), [players, queue, walk]);
+  const cash = useMemo(() => shownCash(players ?? [], queue), [players, queue]);
+  const flashes = useCashFlashes(front);
 
   const profiles = useMemo(
     () => new Map<string, PublicProfile>((view.data?.players ?? []).map((p) => [p.id, p])),
@@ -245,7 +248,7 @@ function MatchPage() {
         )}
       </div>
 
-      <PlayerStrip state={state} myId={userId} profiles={profiles} />
+      <PlayerStrip state={state} cash={cash} flashes={flashes} myId={userId} profiles={profiles} />
 
       <div className="flex flex-col gap-[10px] px-3 pt-3 pb-[max(16px,env(safe-area-inset-bottom))]">
         {!buying && !buildOpen && <ErrorText>{errorMessage(command.error)}</ErrorText>}

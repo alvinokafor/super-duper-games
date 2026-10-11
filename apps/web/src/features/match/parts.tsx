@@ -3,6 +3,7 @@ import type { PublicProfile } from "@bankroll/contracts";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui";
 import { formatNaira, formatShortNaira } from "@/lib/format";
+import type { CashFlash } from "./cash-flash";
 import { seatRing } from "./tokens";
 
 const RING = 2 * Math.PI * 13.25;
@@ -122,23 +123,78 @@ function TokenAvatar({
   );
 }
 
+/** "+₦2,600" in green or "−₦4,200" in red, rising off the balance. */
+function CashTag({ delta, short }: { delta: number; short?: boolean }) {
+  const amount = short ? formatShortNaira(Math.abs(delta)) : formatNaira(Math.abs(delta));
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex h-5 items-center rounded-pill px-[7px] text-[11px] leading-[14px] font-black whitespace-nowrap text-white shadow-[0_3px_8px_#202A2533] motion-safe:animate-cash-tag ${delta > 0 ? "bg-online" : "bg-coral"}`}
+    >
+      {delta > 0 ? "+" : "−"}
+      {amount}
+    </span>
+  );
+}
+
+/** My balance. Its tag floats at the card's top-right corner so a long one never pushes the card wider. */
+function MyCash({ cash, flash }: { cash: number; flash: CashFlash | undefined }) {
+  const tone = flash ? (flash.delta > 0 ? "text-online" : "text-coral") : "text-ink";
+  const motion = flash ? (flash.delta > 0 ? "motion-safe:animate-cash-up" : "motion-safe:animate-cash-down") : "";
+  return (
+    <>
+      <p className="text-body leading-[18px] font-black tracking-[-0.02em] whitespace-nowrap">
+        <span key={flash?.key ?? "still"} className={`inline-block origin-left transition-colors duration-500 ${tone} ${motion}`}>
+          Cash {formatNaira(cash)}
+        </span>
+      </p>
+      {flash && (
+        <span className="pointer-events-none absolute -top-[10px] right-[10px]">
+          <CashTag key={flash.key} delta={flash.delta} />
+        </span>
+      )}
+    </>
+  );
+}
+
+function OtherCash({ cash, flash, out }: { cash: number; flash: CashFlash | undefined; out: boolean }) {
+  const shown = out ? undefined : flash;
+  const tone = shown ? (shown.delta > 0 ? "text-online" : "text-coral") : "text-ink-soft";
+  return (
+    <span className={`relative text-[11px] leading-[14px] font-bold transition-colors duration-500 ${tone}`}>
+      {out ? "Out" : formatShortNaira(cash)}
+      {shown && (
+        <span className="pointer-events-none absolute inset-x-[-20px] bottom-[48px] flex justify-center">
+          <CashTag key={shown.key} delta={shown.delta} short />
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function PlayerStrip({
   state,
+  cash,
+  flashes,
   myId,
   profiles,
 }: {
   state: LagosPublicState;
+  /** Each player's cash as it should look now, which can lag the server while moves play. */
+  cash: Map<string, number>;
+  flashes: ReadonlyMap<string, CashFlash>;
   myId: string;
   profiles: Map<string, PublicProfile>;
 }) {
   const me = state.players.find((p) => p.id === myId);
   const others = state.players.filter((p) => p.id !== myId);
   const unknown = (id: string): PublicProfile => ({ id, username: "", displayName: "Player", avatarUrl: null });
+  const myCash = me ? (cash.get(me.id) ?? me.cash) : 0;
 
   return (
     <div className="flex items-center gap-2 px-3 pt-3">
       {me && (
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[14px] border border-line bg-white px-[10px] py-2">
+        <div className="relative flex min-w-0 flex-1 items-center gap-2 rounded-[14px] border border-line bg-white px-[10px] py-2">
           <TokenAvatar
             person={profiles.get(me.id) ?? unknown(me.id)}
             seat={me.seat}
@@ -151,11 +207,9 @@ export function PlayerStrip({
               {profiles.get(me.id)?.displayName ?? "You"}
               {me.status !== "playing" && " · Out"}
             </p>
-            <p className="text-body leading-[18px] font-black tracking-[-0.02em] whitespace-nowrap text-ink">
-              Cash {formatNaira(me.cash)}
-            </p>
+            <MyCash cash={myCash} flash={flashes.get(me.id)} />
             <p className="text-[11px] leading-[14px] font-bold whitespace-nowrap text-lagoon">
-              Net worth {formatNaira(netWorth(state, me.id))}
+              Net worth {formatNaira(netWorth(state, me.id) - me.cash + myCash)}
             </p>
           </div>
         </div>
@@ -171,7 +225,7 @@ export function PlayerStrip({
           >
             <TokenAvatar person={person} seat={p.seat} size={28} active={state.currentPlayerId === p.id && state.phase !== "finished"} out={out} />
             <span className="sr-only">{person.displayName}</span>
-            <span className="text-[11px] leading-[14px] font-bold text-ink-soft">{out ? "Out" : formatShortNaira(p.cash)}</span>
+            <OtherCash cash={cash.get(p.id) ?? p.cash} flash={flashes.get(p.id)} out={out} />
           </div>
         );
       })}

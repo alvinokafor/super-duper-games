@@ -87,6 +87,51 @@
   --radius-card: 16px;
   --radius-sheet: 24px;
   --radius-pill: 999px;
+
+  /* Cash going up or down in the player strip. */
+  --animate-cash-tag: cash-tag 1.6s ease-out forwards;
+  --animate-cash-up: cash-up 0.6s ease-out;
+  --animate-cash-down: cash-down 0.5s ease-in-out;
+
+  @keyframes cash-tag {
+    0% {
+      opacity: 0;
+      transform: translateY(6px) scale(0.8);
+    }
+    15% {
+      opacity: 1;
+      transform: translateY(0) scale(1.1);
+    }
+    30% {
+      transform: translateY(0) scale(1);
+    }
+    75% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-14px) scale(1);
+    }
+  }
+  @keyframes cash-up {
+    35% {
+      transform: scale(1.12);
+    }
+  }
+  @keyframes cash-down {
+    20% {
+      transform: translateX(-3px);
+    }
+    40% {
+      transform: translateX(3px);
+    }
+    60% {
+      transform: translateX(-2px);
+    }
+    80% {
+      transform: translateX(2px);
+    }
+  }
 }
 
 html,
