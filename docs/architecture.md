@@ -173,12 +173,10 @@ Live channels (phones must join with `private: true`):
 |---|---|
 | Database, login, live updates | Supabase project `lagos-property` (`suzhmczhjoyalrctwjnt`, eu-west-1) |
 | API | Fly.io app `lagos-property-api`, London, one machine always on |
-| Web app | Vercel project with root directory `apps/web` |
+| Web app | Vercel project `lagos-property` (root directory `apps/web`), https://lagos-property.vercel.app. Every push to `main` deploys it. |
 
 - **Database changes:** `supabase db push --linked`. Check first with `--dry-run`.
-- **API:** from the repo root, `fly deploy . --config apps/api/fly.toml --dockerfile apps/api/Dockerfile`. The build bundles everything into one file. Secrets are set with `fly secrets set`:
-  - `DATABASE_URL`: the session pooler address from the Supabase dashboard (port 5432, not the transaction pooler on 6543), ending in `?sslmode=require`.
-  - `WEB_ORIGIN`: the Vercel site address.
+- **API:** from the repo root, `fly deploy . --config apps/api/fly.toml --dockerfile apps/api/Dockerfile`. The build bundles everything into one file. `SUPABASE_URL` and `WEB_ORIGIN` live in `fly.toml`. The only secret is `DATABASE_URL`, set with `fly secrets set`: the session pooler address (port 5432, not the transaction pooler on 6543), ending in `?sslmode=require`.
 - **Web:** Vercel builds `apps/web` using `apps/web/vercel.json`. Set `VITE_API_URL` (the Fly address), `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` and `ENABLE_EXPERIMENTAL_COREPACK=1` (so Vercel uses the pnpm version in `package.json`).
 - **Supabase auth settings:** set the Site URL and redirect URLs to the Vercel address.
 

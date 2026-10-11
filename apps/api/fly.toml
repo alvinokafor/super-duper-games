@@ -6,6 +6,7 @@ primary_region = "lhr"
 [env]
   PORT = "8080"
   SUPABASE_URL = "https://suzhmczhjoyalrctwjnt.supabase.co"
+  WEB_ORIGIN = "https://lagos-property.vercel.app"
 
 # The turn timer runs inside the API, so a machine must always be on.
 [http_service]
