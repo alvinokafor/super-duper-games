@@ -14,6 +14,7 @@ import {
   netWorth,
   phaseSeconds,
   type RandomInt,
+  sameTurnStep,
   toPublicView,
 } from "@bankroll/lagos-rules";
 import { and, eq, type SQL, sql } from "drizzle-orm";
@@ -98,13 +99,14 @@ export async function saveMove(
 ): Promise<LagosUpdate> {
   const version = match.version + 1;
   const finished = next.public.phase === "finished";
+  const keepDeadline = match.turnDeadline !== null && sameTurnStep(match.state.public, next.public);
 
   const [saved] = await tx
     .update(matches)
     .set({
       version,
       state: next,
-      turnDeadline: deadlineFor(next),
+      turnDeadline: keepDeadline ? match.turnDeadline : deadlineFor(next),
       status: finished ? "finished" : "active",
       updatedAt: sql`now()`,
       finishedAt: finished ? sql`now()` : null,

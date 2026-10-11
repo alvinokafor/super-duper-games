@@ -163,8 +163,22 @@ for (let turn = 0; turn < 40 && bought === 0; turn++) {
     if (res.status === 200) {
       const after = res.body.snapshot.state.players.find((p) => p.id === user.me.id);
       if (bought === 0) check(after.cash < before.cash && res.body.snapshot.state.owners[after.position] === user.me.id, "buying takes cash and records the owner");
-      bought++;
       snapshot = res.body.snapshot;
+      if (bought === 0) {
+        // Utilities can't be built on; land with one of three can take a shop.
+        const built = await send(user, { type: "build", space: after.position, building: "shop" });
+        check(
+          built.status === 200
+            ? built.body.snapshot.state.buildings[after.position].commercial === "shop"
+            : built.body.error?.code === "illegal_move" || built.body.error?.code === "not_enough_cash",
+          `building a shop on the new land is applied or cleanly refused (${built.status})`,
+        );
+        if (built.status === 200) {
+          check(built.body.snapshot.turnDeadline === snapshot.turnDeadline, "building keeps the turn deadline");
+          snapshot = built.body.snapshot;
+        }
+      }
+      bought++;
     } else {
       snapshot = (await send(user, { type: "pass_property" })).body.snapshot;
     }

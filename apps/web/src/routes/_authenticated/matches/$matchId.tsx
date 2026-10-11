@@ -9,11 +9,20 @@ import { matchMessagesQuery, useMatchCommand, useSendMatchMessage } from "@/feat
 import { Board } from "@/features/match/board/board";
 import { spaceDotClass } from "@/features/match/board/board-layout";
 import { Die, PlayerStrip, RollPill, TurnTimer } from "@/features/match/parts";
-import { BuySheet, ChatSheet, PaydaySheet, ResultsSheet } from "@/features/match/sheets";
+import { BuildSheet, BuySheet, ChatSheet, PaydaySheet, ResultsSheet } from "@/features/match/sheets";
 import { useGameAnimationStore } from "@/features/match/stores/game-animation.store";
 import { useGameSessionStore } from "@/features/match/stores/game-session.store";
 import { resetMatchStores } from "@/features/match/stores/reset-match-stores";
-import { DICE_MS, planFront, shownPositions, startWalk, type Walk, walkPath } from "@/features/match/token-walk";
+import { noticeText } from "@/features/match/notices";
+import {
+  DICE_MS,
+  NOTICE_MS,
+  planFront,
+  shownPositions,
+  startWalk,
+  type Walk,
+  walkPath,
+} from "@/features/match/token-walk";
 import { useMatchSync } from "@/features/match/use-match-sync";
 import { formatCount } from "@/lib/format";
 
@@ -41,8 +50,10 @@ function MatchPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const [toast, setToast] = useState<{ senderId: string; body: string } | null>(null);
-  const [payday, setPayday] = useState<{ income: number; amount: number } | null>(null);
+  const [payday, setPayday] = useState<{ income: number; costs: number; amount: number } | null>(null);
   const [resultsOpen, setResultsOpen] = useState(true);
+  // The turn the build card was opened in, so it closes when that turn ends.
+  const [buildOpenIn, setBuildOpenIn] = useState<string | null>(null);
 
   const view = useMatchSync(matchId, (senderId, body) => {
     if (senderId === userId || chatOpen) return;
@@ -75,17 +86,19 @@ function MatchPage() {
   }, [commandFailed, resetCommand]);
 
   // Plays server events one at a time. The die waits on screen, then the
-  // piece walks tile by tile; my own payday opens a card without holding up
-  // later events. Everything else is already reflected in the board.
+  // piece walks tile by tile, then rent and other players' builds show as a
+  // short notice; my own payday opens a card without holding up later
+  // events. Everything else is already reflected in the board.
   const hidden = usePageHidden();
   const front = queue[0];
-  const play = planFront(queue, hidden);
+  const play = planFront(queue, hidden, userId);
   const showDice = play === "dice";
   const [walk, setWalk] = useState<Walk | null>(null);
   useEffect(() => {
     if (!front) return;
     if (front.event.type === "payday" && front.event.playerId === userId) {
-      setPayday({ income: front.event.income, amount: front.event.amount });
+      const { income, costs, amount } = front.event;
+      setPayday({ income, costs, amount });
     }
     if (play === "walk" && front.event.type === "token_moved") {
       const { playerId, from, to } = front.event;
@@ -99,8 +112,8 @@ function MatchPage() {
         },
       );
     }
-    if (play !== "dice") return complete(front.key);
-    const timer = setTimeout(() => complete(front.key), DICE_MS);
+    if (play !== "dice" && play !== "notice") return complete(front.key);
+    const timer = setTimeout(() => complete(front.key), play === "dice" ? DICE_MS : NOTICE_MS);
     return () => clearTimeout(timer);
   }, [front, play, userId, complete]);
   const moving = queue.some((a) => a.event.type === "dice_rolled" || a.event.type === "token_moved");
@@ -183,6 +196,14 @@ function MatchPage() {
     ? queue.find((a) => a.event.type === "token_moved" && a.event.playerId === diceEvent.playerId)?.event
     : null;
   const destination = moveEvent?.type === "token_moved" ? BOARD[moveEvent.to]! : null;
+  const notice = play === "notice" && front ? front.event : null;
+  const noticeLine = notice ? noticeText(notice, userId, names) : null;
+  const noticeSpace = notice && "space" in notice ? BOARD[notice.space] : undefined;
+
+  const ownsLand = state.owners.some((owner, i) => owner === userId && BOARD[i]!.kind === "property");
+  const canBuild = myTurn && state.phase === "awaiting_action" && !moving && !busy && ownsLand;
+  const turnKey = `${state.round}:${state.currentPlayerId}:${state.phase}`;
+  const buildOpen = buildOpenIn === turnKey && myTurn && state.phase === "awaiting_action";
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-[480px] flex-col bg-paper pt-[calc(env(safe-area-inset-top)+12px)]">
@@ -198,6 +219,11 @@ function MatchPage() {
                 text={`${diceEvent.playerId === userId ? "To" : `${names.get(diceEvent.playerId) ?? "Player"} to`} ${destination.name}`}
               />
             )}
+          </div>
+        )}
+        {noticeLine && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
+            <RollPill dotClass={noticeSpace ? spaceDotClass(noticeSpace) : "bg-lagoon"} text={noticeLine} />
           </div>
         )}
       </Board>
@@ -222,15 +248,26 @@ function MatchPage() {
       <PlayerStrip state={state} myId={userId} profiles={profiles} />
 
       <div className="flex flex-col gap-[10px] px-3 pt-3 pb-[max(16px,env(safe-area-inset-bottom))]">
-        {!buying && <ErrorText>{errorMessage(command.error)}</ErrorText>}
-        <button
-          type="button"
-          onClick={action.onClick}
-          disabled={!action.onClick}
-          className={`flex h-[52px] shrink-0 items-center justify-center rounded-[12px] text-[18px] leading-body font-black tracking-wide ${actionTone}`}
-        >
-          {action.label}
-        </button>
+        {!buying && !buildOpen && <ErrorText>{errorMessage(command.error)}</ErrorText>}
+        <div className="flex gap-2">
+          {canBuild && (
+            <button
+              type="button"
+              onClick={() => setBuildOpenIn(turnKey)}
+              className="flex h-[52px] w-[120px] shrink-0 items-center justify-center rounded-[12px] border border-line bg-white text-[18px] leading-body font-black tracking-wide text-ink"
+            >
+              BUILD
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={action.onClick}
+            disabled={!action.onClick}
+            className={`flex h-[52px] flex-1 items-center justify-center rounded-[12px] text-[18px] leading-body font-black tracking-wide ${actionTone}`}
+          >
+            {action.label}
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -263,7 +300,18 @@ function MatchPage() {
           onPass={() => run({ type: "pass_property" })}
         />
       )}
-      {payday && <PaydaySheet income={payday.income} amount={payday.amount} onClose={() => setPayday(null)} />}
+      {buildOpen && (
+        <BuildSheet
+          state={state}
+          myId={userId}
+          deadline={deadline}
+          busy={busy}
+          error={command.error}
+          onBuild={(space, building) => run({ type: "build", space, building })}
+          onClose={() => setBuildOpenIn(null)}
+        />
+      )}
+      {payday && <PaydaySheet {...payday} onClose={() => setPayday(null)} />}
       {state.phase === "finished" && resultsOpen && (
         <ResultsSheet state={state} profiles={profiles} myId={userId} onClose={() => setResultsOpen(false)} />
       )}

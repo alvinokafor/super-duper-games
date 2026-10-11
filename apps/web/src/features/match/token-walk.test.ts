@@ -28,27 +28,41 @@ describe("planFront", () => {
   const dice = (key: string) => other(key, { type: "dice_rolled", playerId: "a", value: 3 });
 
   it("has nothing to play on an empty queue", () => {
-    expect(planFront([], false)).toBeNull();
+    expect(planFront([], false, "me")).toBeNull();
   });
 
   it("shows the die, then walks", () => {
-    expect(planFront([dice("1:0"), moved("1:1", "a", 0, 3)], false)).toBe("dice");
-    expect(planFront([moved("1:1", "a", 0, 3)], false)).toBe("walk");
+    expect(planFront([dice("1:0"), moved("1:1", "a", 0, 3)], false, "me")).toBe("dice");
+    expect(planFront([moved("1:1", "a", 0, 3)], false, "me")).toBe("walk");
   });
 
   it("skips a die or walk when a later one is already waiting", () => {
     const queue = [dice("1:0"), moved("1:1", "a", 0, 3), dice("2:0"), moved("2:1", "b", 4, 6)];
-    expect(planFront(queue, false)).toBe("instant");
-    expect(planFront(queue.slice(1), false)).toBe("instant");
+    expect(planFront(queue, false, "me")).toBe("instant");
+    expect(planFront(queue.slice(1), false, "me")).toBe("instant");
   });
 
   it("plays everything at once while the page is hidden", () => {
-    expect(planFront([dice("1:0"), moved("1:1", "a", 0, 3)], true)).toBe("instant");
-    expect(planFront([moved("1:1", "a", 0, 3)], true)).toBe("instant");
+    expect(planFront([dice("1:0"), moved("1:1", "a", 0, 3)], true, "me")).toBe("instant");
+    expect(planFront([moved("1:1", "a", 0, 3)], true, "me")).toBe("instant");
+  });
+
+  it("shows rent and other players' builds as a notice, but not my own builds", () => {
+    const rent = other("1:3", { type: "rent_paid", playerId: "a", ownerId: "b", space: 10, amount: 2_000, owed: 2_000 });
+    const built = (playerId: string) =>
+      other("2:0", { type: "building_built", playerId, space: 1, building: "shop", cost: 4_500, replaced: null });
+    expect(planFront([rent], false, "me")).toBe("notice");
+    expect(planFront([built("b")], false, "me")).toBe("notice");
+    expect(planFront([built("me")], false, "me")).toBe("instant");
+  });
+
+  it("skips a notice once another roll is waiting", () => {
+    const rent = other("1:3", { type: "rent_paid", playerId: "a", ownerId: "b", space: 10, amount: 2_000, owed: 2_000 });
+    expect(planFront([rent, dice("2:0")], false, "me")).toBe("instant");
   });
 
   it("plays other events at once", () => {
-    expect(planFront([other("1:2", { type: "turn_started", playerId: "b", round: 1 })], false)).toBe("instant");
+    expect(planFront([other("1:2", { type: "turn_started", playerId: "b", round: 1 })], false, "me")).toBe("instant");
   });
 });
 

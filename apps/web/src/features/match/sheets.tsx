@@ -1,12 +1,21 @@
 import type { MatchMessage, PublicProfile } from "@bankroll/contracts";
 import {
   BOARD,
+  BUILDING_IDS,
+  BUILDINGS,
+  type BuildingId,
   type BuyableSpace,
+  buildingStats,
+  buildingsOn,
   CORRIDORS,
+  type CorridorId,
+  checkBuild,
+  corridorCount,
   corridorSpaces,
   type LagosPublicState,
   netWorth,
   phaseSeconds,
+  type Slot,
 } from "@bankroll/lagos-rules";
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
@@ -31,7 +40,7 @@ function Sheet({ children, onDismiss, label }: { children: ReactNode; onDismiss?
   );
 }
 
-const timerTrack: Record<string, string> = {
+const timerTrack: Record<CorridorId, string> = {
   island_elite: "#F8EFD4",
   lekki: "#D7F1EE",
   mainland_premium: "#EBE4F4",
@@ -81,7 +90,7 @@ export function BuySheet({
     const heldText = held.length ? `You hold ${listNames(held.map((i) => BOARD[i]!.name))}.` : "You hold none yet.";
     header = look.solid;
     subtitle = `${corridor.name} · For sale`;
-    track = timerTrack[space.corridor] ?? track;
+    track = timerTrack[space.corridor];
     progress = (
       <div className={`flex flex-col gap-[6px] rounded-[12px] p-3 ${look.soft}`}>
         <div className="flex items-center justify-between">
@@ -171,7 +180,165 @@ export function BuySheet({
   );
 }
 
-export function PaydaySheet({ income, amount, onClose }: { income: number; amount: number; onClose: () => void }) {
+const slotGroups: { slot: Slot; title: string; note: string }[] = [
+  { slot: "commercial", title: "Business", note: "Pays you at GO" },
+  { slot: "residential", title: "Home", note: "Charges rent when others land" },
+  { slot: "hotel", title: "Hotel", note: "Pays at GO and charges a fee" },
+];
+
+function buildingDetail(id: BuildingId, corridor: CorridorId) {
+  const s = buildingStats(id, corridor);
+  const parts = [
+    s.income > 0 && `+${formatNaira(s.income)} at GO`,
+    s.rent > 0 && `${formatNaira(s.rent)} ${id === "hotel" ? "fee" : "rent"}`,
+    `${formatNaira(s.maintenance)} upkeep`,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
+export function BuildSheet({
+  state,
+  myId,
+  deadline,
+  busy,
+  error,
+  onBuild,
+  onClose,
+}: {
+  state: LagosPublicState;
+  myId: string;
+  deadline: string | null;
+  busy: boolean;
+  error: unknown;
+  onBuild: (space: number, building: BuildingId) => void;
+  onClose: () => void;
+}) {
+  const me = state.players.find((p) => p.id === myId);
+  const mine = BOARD.flatMap((s, i) => (s.kind === "property" && state.owners[i] === myId ? [i] : []));
+  const [picked, setPicked] = useState(() => (me && mine.includes(me.position) ? me.position : mine[0]));
+  const space = picked !== undefined ? BOARD[picked] : undefined;
+  if (!me || picked === undefined || space?.kind !== "property") return null;
+
+  const look = corridorLook[space.corridor];
+  const corridor = CORRIDORS[space.corridor];
+  const held = corridorCount(state, myId, space.corridor);
+
+  return (
+    <Sheet label={`Build on ${space.name}`} onDismiss={onClose}>
+      <div className={`flex items-center justify-between px-4 py-[14px] ${look.solid}`}>
+        <div className="flex flex-col gap-[2px]">
+          <p className="text-[18px] leading-body font-black tracking-[-0.02em] text-white">Build on {space.name}</p>
+          <p className="text-caption leading-caption font-semibold text-[#FFFFFFE6]">
+            {corridor.name} · {held} of 3 · Cash {formatNaira(me.cash)}
+          </p>
+        </div>
+        <TurnTimer deadline={deadline} totalSeconds={phaseSeconds("awaiting_action")} track={timerTrack[space.corridor]} />
+      </div>
+      {mine.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto border-b border-divider px-4 py-3">
+          {mine.map((i) => {
+            const land = BOARD[i]!;
+            const count = buildingsOn(state.buildings[i]!).length;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setPicked(i)}
+                aria-pressed={i === picked}
+                className={`flex h-8 shrink-0 items-center gap-[6px] rounded-pill border px-3 text-caption leading-caption font-bold text-ink ${i === picked ? "border-ink bg-paper" : "border-line bg-white"}`}
+              >
+                {land.kind === "property" && <span className={`size-2 rounded-pill ${corridorLook[land.corridor].solid}`} />}
+                {land.name}
+                {count > 0 && <span className="text-ink-soft">· {count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-3">
+        {slotGroups.map((group) => (
+          <section key={group.slot} className="flex flex-col gap-1">
+            <p className="text-caption leading-caption font-bold tracking-[0.06em] text-ink-soft">
+              {group.title.toUpperCase()} · <span className="font-medium tracking-normal normal-case">{group.note}</span>
+            </p>
+            {BUILDING_IDS.filter((id) => BUILDINGS[id].slot === group.slot).map((id) => {
+              const check = checkBuild(state, myId, picked, id);
+              if (!check.ok && check.reason === "lower") return null;
+              const short = check.ok && me.cash < check.cost;
+              let status: ReactNode;
+              if (check.ok) {
+                status = (
+                  <button
+                    type="button"
+                    onClick={() => onBuild(picked, id)}
+                    disabled={busy || short}
+                    className={`flex h-9 min-w-[96px] shrink-0 items-center justify-center rounded-[10px] px-3 text-label leading-caption font-black disabled:opacity-60 ${short ? "bg-paper-deep text-alert" : "bg-lagoon text-white"}`}
+                  >
+                    {check.replaces ? "Upgrade " : ""}
+                    {formatNaira(check.cost)}
+                  </button>
+                );
+              } else {
+                const text = {
+                  built: "Built",
+                  locked: `Needs ${check.needs} of 3`,
+                  uneven: "Build evenly first",
+                  not_yours: "",
+                  lower: "",
+                }[check.reason];
+                status = (
+                  <span className={`shrink-0 text-label leading-caption font-bold ${check.reason === "built" ? "text-lagoon" : "text-ink-soft"}`}>
+                    {text}
+                  </span>
+                );
+              }
+              return (
+                <div key={id} className="flex items-center gap-3 border-b border-divider py-2 last:border-0">
+                  <div className="flex min-w-0 flex-1 flex-col gap-px">
+                    <p className="text-[14px] leading-[18px] font-bold text-ink">{BUILDINGS[id].name}</p>
+                    <p className="text-caption leading-caption font-medium text-ink-soft">{buildingDetail(id, space.corridor)}</p>
+                  </div>
+                  {status}
+                </div>
+              );
+            })}
+          </section>
+        ))}
+        <p className="text-caption leading-caption font-medium text-ink-soft">
+          Build evenly: a property can't get 2 more buildings than your other land in the same area.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 border-t border-divider px-4 pt-3 pb-4">
+        <ErrorText>{errorMessage(error)}</ErrorText>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-11 items-center justify-center rounded-[12px] border border-line bg-white text-[14px] leading-[18px] font-bold text-ink"
+        >
+          Done
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+export function PaydaySheet({
+  income,
+  costs,
+  amount,
+  onClose,
+}: {
+  income: number;
+  costs: number;
+  amount: number;
+  onClose: () => void;
+}) {
+  const note =
+    income === 0 && costs === 0
+      ? "No shops, offices or hotels yet. Once you build, they pay you here."
+      : costs > income
+        ? "Upkeep was more than income this time. GO never takes money, so you get nothing."
+        : "Your businesses pay you, minus upkeep on everything you've built.";
   return (
     <Sheet label="Payday" onDismiss={onClose}>
       <div className="flex flex-col gap-[2px] bg-lagoon px-4 pt-4 pb-[14px]">
@@ -183,13 +350,23 @@ export function PaydaySheet({ income, amount, onClose }: { income: number; amoun
           <div className="flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-paper">
             <ArtTile src={lagosArt.payday} className="h-12 w-[60px]" />
           </div>
-          <p className="text-[14px] leading-5 font-semibold text-ink-soft">
-            {income > 0 ? "Your businesses pay you." : "No shops or offices yet. Once you build, they pay you here."}
-          </p>
+          <p className="text-[14px] leading-5 font-semibold text-ink-soft">{note}</p>
         </div>
+        {(income > 0 || costs > 0) && (
+          <>
+            <div className="flex items-center justify-between border-b border-edge py-[10px]">
+              <p className="text-body leading-5 font-medium text-ink-soft">Income</p>
+              <p className="text-body leading-5 font-bold text-ink">{formatNaira(income)}</p>
+            </div>
+            <div className="flex items-center justify-between border-b border-edge py-[10px]">
+              <p className="text-body leading-5 font-medium text-ink-soft">Upkeep</p>
+              <p className="text-body leading-5 font-bold text-alert">−{formatNaira(costs)}</p>
+            </div>
+          </>
+        )}
         <div className="flex items-center justify-between border-b border-edge py-[10px]">
-          <p className="text-body leading-5 font-medium text-ink-soft">Payday</p>
-          <p className="text-body leading-5 font-bold text-ink">{formatNaira(amount)}</p>
+          <p className="text-body leading-5 font-black text-ink">Payday</p>
+          <p className="text-body leading-5 font-black text-ink">{formatNaira(amount)}</p>
         </div>
         <button
           type="button"

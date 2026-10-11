@@ -28,7 +28,7 @@ export const PIECE_RADIUS = 0.016;
 export function pieceSpot(position: number, slot: number, count: number): { x: number; y: number } {
   const box = cellBox(position);
   const gap = PIECE_RADIUS * (count > 3 ? 1.2 : 1.8);
-  return { x: box.x + box.w / 2 + (slot - (count - 1) / 2) * gap, y: box.y + box.h * 0.3 };
+  return { x: box.x + box.w / 2 + (slot - (count - 1) / 2) * gap, y: box.y + box.h * 0.25 };
 }
 
 /**

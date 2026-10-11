@@ -1,4 +1,4 @@
-import { BOARD, CORRIDORS, type LagosPublicState, type Space } from "@bankroll/lagos-rules";
+import { BOARD, BUILDINGS, buildingsOn, CORRIDORS, type LagosPublicState, type Slots, type Space } from "@bankroll/lagos-rules";
 import { type ReactNode, useMemo } from "react";
 import { lagosArt } from "@/features/games/art";
 import { seatToken } from "../tokens";
@@ -41,7 +41,13 @@ export function Board({
         const ownerId = state.owners[index] ?? null;
         const ownerName = ownerId ? names.get(ownerId) : undefined;
         const here = tokens.filter((t) => t.position === index).map((t) => names.get(t.id) ?? "A player");
-        const label = [space.name, ownerName && `owned by ${ownerName}`, here.length > 0 && `${here.join(", ")} here`]
+        const built = buildingsOn(state.buildings[index]!).map((b) => BUILDINGS[b].name);
+        const label = [
+          space.name,
+          ownerName && `owned by ${ownerName}`,
+          built.length > 0 && `with ${built.join(", ")}`,
+          here.length > 0 && `${here.join(", ")} here`,
+        ]
           .filter(Boolean)
           .join(", ");
         return (
@@ -49,6 +55,7 @@ export function Board({
             key={space.name}
             index={index}
             space={space}
+            slots={state.buildings[index]!}
             ownerSeat={ownerId ? (seats.get(ownerId) ?? null) : null}
             highlight={state.phase !== "finished" && current === index}
             label={label}
@@ -91,12 +98,14 @@ const utilityStripe = {
 function Tile({
   index,
   space,
+  slots,
   ownerSeat,
   highlight,
   label,
 }: {
   index: number;
   space: Space;
+  slots: Slots;
   ownerSeat: number | null;
   highlight: boolean;
   label: string;
@@ -128,7 +137,10 @@ function Tile({
         {owned && side !== "corner" && <div className={`shrink-0 ${ownerBarClass[side]} ${seatToken(ownerSeat)}`} />}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-[2px]">
           {space.kind === "utility" && <UtilityIcon name={space.name} />}
-          <span className={`font-black ${size} ${solid ? "text-white" : "text-ink"}`}>{short}</span>
+          <span className={`relative font-black ${size} ${solid ? "text-white" : "text-ink"}`}>
+            {short}
+            <BuildingIcons slots={slots} />
+          </span>
         </div>
         {ring}
       </div>
@@ -182,6 +194,36 @@ function Tile({
       {body}
       {ring}
     </div>
+  );
+}
+
+/**
+ * One small icon per standing building: business, home, hotel. Hangs below
+ * the name so the name stays centred, clear of the pieces above it.
+ */
+function BuildingIcons({ slots }: { slots: Slots }) {
+  if (!slots.commercial && !slots.residential && !slots.hotel) return null;
+  return (
+    <span className="absolute top-full left-1/2 mt-[2px] flex -translate-x-1/2 items-center gap-[2px]" aria-hidden>
+      {slots.commercial && (
+        <svg width="8" height="9" viewBox="0 0 8 9">
+          <rect x="1" y="0.5" width="6" height="8.5" rx="0.6" fill="#1B3A6B" />
+          <path d="M2.6 2.2h.9M4.5 2.2h.9M2.6 4h.9M4.5 4h.9M2.6 5.8h.9M4.5 5.8h.9" stroke="#BFD0EA" strokeWidth="0.9" />
+        </svg>
+      )}
+      {slots.residential && (
+        <svg width="9" height="9" viewBox="0 0 9 9">
+          <path d="M4.5 0.6L8.6 4.2V8.6H0.4V4.2Z" fill="#8C3A2F" />
+          <rect x="3.6" y="5.6" width="1.8" height="3" fill="#FCE3DF" />
+        </svg>
+      )}
+      {slots.hotel && (
+        <svg width="9" height="9" viewBox="0 0 9 9">
+          <rect x="0.3" y="0.3" width="8.4" height="8.4" rx="1.6" fill="#F5BF45" />
+          <path d="M3 2.3v4.4M6 2.3v4.4M3 4.5h3" stroke="#202A25" strokeWidth="1.2" />
+        </svg>
+      )}
+    </span>
   );
 }
 

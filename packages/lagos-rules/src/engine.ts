@@ -1,4 +1,6 @@
 import { BOARD, isBuyable } from "./board";
+import { isCommercial, isResidential } from "./buildings";
+import { checkBuild, netWorth, payday, rentDue } from "./economy";
 import {
   BOARD_SIZE,
   MAX_PLAYERS,
@@ -7,12 +9,13 @@ import {
   ROUNDS_BY_PLAYER_COUNT,
   STARTING_CASH,
 } from "./constants";
-import type {
-  LagosCommand,
-  LagosEvent,
-  LagosPlayer,
-  LagosPublicState,
-  LagosState,
+import {
+  emptyBuildings,
+  type LagosCommand,
+  type LagosEvent,
+  type LagosPlayer,
+  type LagosPublicState,
+  type LagosState,
 } from "./schemas";
 
 export type RuleError = "not_your_turn" | "illegal_move" | "not_enough_cash" | "match_finished";
@@ -67,6 +70,7 @@ export function createMatch(input: CreateMatchInput): LagosState {
       lastRoll: null,
       players,
       owners: Array.from({ length: BOARD_SIZE }, () => null),
+      buildings: emptyBuildings(),
       winnerIds: null,
     },
     hidden: {},
@@ -74,7 +78,20 @@ export function createMatch(input: CreateMatchInput): LagosState {
 }
 
 export function toPublicView(state: LagosState): LagosPublicState {
-  return state.public;
+  return { ...state.public, buildings: state.public.buildings ?? emptyBuildings() };
+}
+
+/**
+ * Whether a move left the same player on the same step of the same turn,
+ * such as a build. The turn clock then keeps running instead of restarting,
+ * so building can't stretch a turn.
+ */
+export function sameTurnStep(before: LagosPublicState, after: LagosPublicState): boolean {
+  return (
+    before.round === after.round &&
+    before.currentPlayerId === after.currentPlayerId &&
+    before.phase === after.phase
+  );
 }
 
 export function applyCommand(
@@ -114,6 +131,28 @@ export function applyCommand(
       passProperty(next, player, events);
       break;
 
+    case "build": {
+      if (next.public.phase !== "awaiting_action") return { ok: false, error: "illegal_move" };
+      const check = checkBuild(next.public, player.id, command.space, command.building);
+      if (!check.ok) return { ok: false, error: "illegal_move" };
+      if (player.cash < check.cost) return { ok: false, error: "not_enough_cash" };
+      player.cash -= check.cost;
+      const slots = next.public.buildings[command.space]!;
+      const building = command.building;
+      if (isCommercial(building)) slots.commercial = building;
+      else if (isResidential(building)) slots.residential = building;
+      else slots.hotel = true;
+      events.push({
+        type: "building_built",
+        playerId: player.id,
+        space: command.space,
+        building: command.building,
+        cost: check.cost,
+        replaced: check.replaces,
+      });
+      break;
+    }
+
     case "end_turn":
       if (next.public.phase !== "awaiting_action") return { ok: false, error: "illegal_move" };
       advanceTurn(next, events);
@@ -144,34 +183,16 @@ export function applyTimeout(state: LagosState, randomInt: RandomInt): ApplyResu
   if (player.missedTurns >= MISSED_TURNS_BEFORE_REMOVAL) {
     // TODO: once shared property, loans and offers exist, hand those over too.
     player.status = "removed";
-    next.public.owners = next.public.owners.map((owner) => (owner === player.id ? null : owner));
+    next.public.owners.forEach((owner, index) => {
+      if (owner !== player.id) return;
+      next.public.owners[index] = null;
+      next.public.buildings[index] = { commercial: null, residential: null, hotel: false };
+    });
     events.push({ type: "player_removed", playerId: player.id });
   }
 
   advanceTurn(next, events);
   return { ok: true, state: next, events };
-}
-
-/** Cash plus the list price of land and utilities. Buildings join this later. */
-export function netWorth(state: LagosPublicState, playerId: string): number {
-  const player = state.players.find((p) => p.id === playerId);
-  if (!player) return 0;
-  let total = player.cash;
-  state.owners.forEach((owner, index) => {
-    const space = BOARD[index]!;
-    if (owner === playerId && isBuyable(space)) total += space.price;
-  });
-  return total;
-}
-
-/**
- * What GO pays this player. Commercial and hotel income minus maintenance and
- * loan repayments; with no buildings yet it is always zero. Never negative.
- */
-export function payday(_state: LagosPublicState, _playerId: string) {
-  const income = 0;
-  const costs = 0;
-  return { income, costs, amount: Math.max(0, income - costs) };
 }
 
 function rollAndMove(state: LagosState, player: LagosPlayer, events: LagosEvent[], randomInt: RandomInt) {
@@ -189,6 +210,18 @@ function rollAndMove(state: LagosState, player: LagosPlayer, events: LagosEvent[
     const pay = payday(state.public, player.id);
     player.cash += pay.amount;
     events.push({ type: "payday", playerId: player.id, ...pay });
+  }
+
+  // Rent and utility fees are automatic. Until the money-trouble flow
+  // arrives, a player who can't cover it pays all their cash and the rest is
+  // forgiven.
+  const owed = rentDue(state.public, to, player.id);
+  const ownerId = state.public.owners[to];
+  if (owed > 0 && ownerId) {
+    const amount = Math.min(owed, player.cash);
+    player.cash -= amount;
+    findPlayer(state, ownerId).cash += amount;
+    events.push({ type: "rent_paid", playerId: player.id, ownerId, space: to, amount, owed });
   }
 
   const space = BOARD[to]!;
@@ -245,6 +278,9 @@ function findPlayer(state: LagosState, playerId: string): LagosPlayer {
   return player;
 }
 
+/** Matches saved before buildings existed have no `buildings`; give them empty land. */
 function clone(state: LagosState): LagosState {
-  return structuredClone(state);
+  const next = structuredClone(state);
+  next.public.buildings ??= emptyBuildings();
+  return next;
 }

@@ -91,7 +91,7 @@ A page refresh repeats step 1, so the match always comes back from the server.
 
 ## Turn timer
 
-Each turn phase has a deadline stored with the match: 30 seconds to roll, 30 to decide on a purchase, 30 for other actions. The deadline is set by the database clock, the same clock the worker checks. A worker inside the Hono service finds overdue matches and plays the default move through the same steps as a normal move. It skips matches that are already locked, so running more than one copy of the service is safe.
+Each turn phase has a deadline stored with the match: 30 seconds to roll, 30 to decide on a purchase, 30 for other actions. The deadline is set by the database clock, the same clock the worker checks. A move that leaves the same player on the same step, such as a build, keeps the deadline it had, so building can't stretch a turn. A worker inside the Hono service finds overdue matches and plays the default move through the same steps as a normal move. It skips matches that are already locked, so running more than one copy of the service is safe.
 
 Phones show time left from the server deadline. They do not count down in a store.
 
@@ -104,7 +104,9 @@ The full rules live in `docs/lagos-property-rules.md`. Its decision log (section
 - No auctions.
 - **Timeout:** the server rolls and ends the turn. It never buys anything.
 - **Missed turns:** a turn the server had to play. The count resets when the player acts again.
-- **Removal:** after 3 missed turns in a row, the player goes bankrupt. Their properties go back to the bank. They can watch but cannot rejoin.
+- **Removal:** after 3 missed turns in a row, the player goes bankrupt. Their properties and buildings go back to the bank. They can watch but cannot rejoin.
+- **Buildings:** on your own turn after landing, you can build on land you own. There's no limit per turn. Prices, income, rent and upkeep live in `packages/lagos-rules/src/buildings.ts` as settings. The rules package's `checkBuild` decides what's allowed, and both the server and the build card use it.
+- **Rent and fees:** these are taken automatically when someone lands on owned land with a home or hotel, or on an owned utility. GO pays business and hotel income minus upkeep, and never less than zero.
 - **When a removed player is tied to others:**
   - Shared property goes fully to the co-owner for free.
   - Money they owe is lost for the lender.

@@ -564,6 +564,10 @@ These decisions override the sections above where they conflict.
 - No limit on builds per turn. Building happens only on your own turn, after landing.
 - Build evenly: among the properties you own in a corridor, no property may have 2 or more buildings than another.
 - Corridor tiers (D06): Low-cost = Mainland Low-Cost; Middle-class = Mainland Residential, Mainland Central; Premium = Mainland Premium, Lekki; Ultra-premium = Island Elite.
+- The §9.5 area multipliers are in use as tunable settings. Maintenance follows the construction multiplier. The hotel's build cost and upkeep follow construction, its GO income follows commercial, and its landing fee follows rent.
+- You may build straight to any unlocked building. Replacing one in the same slot costs the price difference plus 10%. You can't swap down to a cheaper building.
+- Bare land charges no rent. Only a home and a hotel do.
+- Until the money-trouble flow (Phase D) arrives, a player who can't cover rent or a fee pays all their cash and the rest is forgiven. Selling buildings back to the bank also arrives with that flow.
 
 **Shared property**
 - At most two owners (D18). Splits are 25/75, 50/50 or 75/25 only.

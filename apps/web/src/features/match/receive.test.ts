@@ -1,3 +1,4 @@
+import { emptyBuildings } from "@bankroll/lagos-rules";
 import { beforeEach, describe, expect, it } from "vitest";
 import { receiveSnapshot, receiveUpdate } from "./receive";
 import { useGameAnimationStore } from "./stores/game-animation.store";
@@ -20,6 +21,7 @@ const snapshot = (version: number): LagosSnapshot => ({
     lastRoll: null,
     players: [],
     owners: Array.from({ length: 28 }, () => null),
+    buildings: emptyBuildings(),
     winnerIds: null,
   },
 });

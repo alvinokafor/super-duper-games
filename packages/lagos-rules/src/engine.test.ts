@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { BOARD, CORRIDORS, corridorSpaces, isBuyable } from "./board";
 import { BOARD_SIZE, STARTING_CASH } from "./constants";
-import { applyCommand as apply, applyTimeout as timeout, createMatch, netWorth, type RandomInt } from "./engine";
+import { netWorth } from "./economy";
+import { applyCommand as apply, applyTimeout as timeout, createMatch, type RandomInt } from "./engine";
 import type { LagosCommand, LagosState } from "./schemas";
 
 /** Repeatable stand-in for crypto.randomInt. */

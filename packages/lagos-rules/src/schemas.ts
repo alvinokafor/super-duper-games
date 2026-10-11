@@ -1,10 +1,23 @@
 import { playerStatusSchema } from "@bankroll/contracts";
 import { z } from "zod";
+import { BUILDING_IDS, COMMERCIAL_IDS, RESIDENTIAL_IDS } from "./buildings";
 import { BOARD_SIZE } from "./constants";
 
 const naira = z.int();
 const dieValue = z.int().min(1).max(6);
 const space = z.int().min(0).max(BOARD_SIZE - 1);
+const buildingId = z.enum(BUILDING_IDS);
+
+/** What stands on one space. Utilities and special spaces stay empty. */
+export const slotsSchema = z.object({
+  commercial: z.enum(COMMERCIAL_IDS).nullable(),
+  residential: z.enum(RESIDENTIAL_IDS).nullable(),
+  hotel: z.boolean(),
+});
+export type Slots = z.infer<typeof slotsSchema>;
+
+export const emptyBuildings = (): Slots[] =>
+  Array.from({ length: BOARD_SIZE }, () => ({ commercial: null, residential: null, hotel: false }));
 
 export const lagosPlayerSchema = z.object({
   id: z.string(),
@@ -30,6 +43,8 @@ export const lagosPublicStateSchema = z.object({
   players: z.array(lagosPlayerSchema),
   /** Owner of each space by board index. Null means the bank owns it. */
   owners: z.array(z.string().nullable()).length(BOARD_SIZE),
+  /** Buildings on each space by board index. Matches saved before buildings existed have none. */
+  buildings: z.array(slotsSchema).length(BOARD_SIZE).default(emptyBuildings),
   /** Set when the match ends. More than one id means a shared win. */
   winnerIds: z.array(z.string()).nullable(),
 });
@@ -49,6 +64,7 @@ export const lagosCommandSchema = z.discriminatedUnion("type", [
   // board can never buy a different property from the one it showed.
   z.object({ type: z.literal("buy_property"), space }),
   z.object({ type: z.literal("pass_property") }),
+  z.object({ type: z.literal("build"), space, building: buildingId }),
   z.object({ type: z.literal("end_turn") }),
 ]);
 export type LagosCommand = z.infer<typeof lagosCommandSchema>;
@@ -71,6 +87,23 @@ export const lagosEventSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("property_bought"), playerId: z.string(), space, price: naira }),
   z.object({ type: z.literal("property_passed"), playerId: z.string(), space }),
+  z.object({
+    type: z.literal("building_built"),
+    playerId: z.string(),
+    space,
+    building: buildingId,
+    cost: naira,
+    replaced: buildingId.nullable(),
+  }),
+  /** `owed` is the full charge; `amount` is what was paid when cash ran short. */
+  z.object({
+    type: z.literal("rent_paid"),
+    playerId: z.string(),
+    ownerId: z.string(),
+    space,
+    amount: naira,
+    owed: naira,
+  }),
   z.object({ type: z.literal("turn_started"), playerId: z.string(), round: z.int() }),
   z.object({ type: z.literal("turn_timed_out"), playerId: z.string(), missedTurns: z.int() }),
   z.object({ type: z.literal("player_removed"), playerId: z.string() }),

@@ -13,22 +13,29 @@ export interface Walk {
   at: number;
 }
 
+/** How long a rent or build notice stays on the board. */
+export const NOTICE_MS = 1800;
+
 /** How to show the event at the front of the queue. */
-export type Play = "dice" | "walk" | "instant";
+export type Play = "dice" | "walk" | "notice" | "instant";
 
 /**
  * Only the latest die and the latest walk are worth showing. When a later
- * one is already queued, this phone is behind, so it skips ahead. Nothing
- * is shown while the page is hidden, since timers crawl in background tabs.
+ * one is already queued, this phone is behind, so it skips ahead; notices
+ * are skipped once another roll is waiting. My own builds need no notice,
+ * since I just tapped them. Nothing is shown while the page is hidden,
+ * since timers crawl in background tabs.
  */
-export function planFront(queue: readonly QueuedAnimation[], hidden: boolean): Play | null {
+export function planFront(queue: readonly QueuedAnimation[], hidden: boolean, myId: string): Play | null {
   const front = queue[0];
   if (!front) return null;
   if (hidden) return "instant";
-  const type = front.event.type;
-  const later = queue.slice(1).some((a) => a.event.type === type);
-  if (type === "dice_rolled" && !later) return "dice";
-  if (type === "token_moved" && !later) return "walk";
+  const event = front.event;
+  const later = (type: string) => queue.slice(1).some((a) => a.event.type === type);
+  if (event.type === "dice_rolled" && !later("dice_rolled")) return "dice";
+  if (event.type === "token_moved" && !later("token_moved")) return "walk";
+  const notice = event.type === "rent_paid" || (event.type === "building_built" && event.playerId !== myId);
+  if (notice && !later("dice_rolled")) return "notice";
   return "instant";
 }
 
